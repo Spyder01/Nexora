@@ -1,0 +1,9 @@
+[package]
+name = "nexora"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zerocopy = { version = "0.8", features = ["derive"] }
+thiserror = "2"
+crc32fast = "1"
