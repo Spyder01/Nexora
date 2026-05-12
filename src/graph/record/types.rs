@@ -66,6 +66,50 @@ impl PackedPtr {
     }
 }
 
+#[derive(Debug, Copy, Clone, FromBytes, IntoBytes, Immutable, KnownLayout)]
+#[repr(C)]
+pub struct Bitset256 {
+    words: [U64; 4],
+}
+
+impl Bitset256 {
+    pub const ZERO: Bitset256 = Bitset256 { words: [U64::new(0); 4] };
+
+    pub fn set(&mut self, bit: usize) {
+        let w = &mut self.words[bit >> 6];
+        *w = U64::new(w.get() | (1u64 << (bit & 63)));
+    }
+
+    pub fn clear(&mut self, bit: usize) {
+        let w = &mut self.words[bit >> 6];
+        *w = U64::new(w.get() & !(1u64 << (bit & 63)));
+    }
+
+    pub fn is_set(&self, bit: usize) -> bool {
+        self.words[bit >> 6].get() & (1u64 << (bit & 63)) != 0
+    }
+
+    pub fn first_zero(&self) -> Option<usize> {
+        for (i, word) in self.words.iter().enumerate() {
+            let w = word.get();
+            if w != u64::MAX {
+                return Some((i << 6) + (!w).trailing_zeros() as usize);
+            }
+        }
+        None
+    }
+
+    pub fn first_set(&self) -> Option<usize> {
+        for (i, word) in self.words.iter().enumerate() {
+            let w = word.get();
+            if w != 0 {
+                return Some((i << 6) + w.trailing_zeros() as usize);
+            }
+        }
+        None
+    }
+}
+
 pub struct RecordCursor {
     next_ptr: PackedPtr,
 }

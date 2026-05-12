@@ -1,0 +1,7 @@
+use crate::storage::constants::{PAGE_HEADER_SIZE, PAGE_SIZE};
+
+pub const PROPERTY_HEADER_SIZE: usize = 1 << 6;
+pub const PROPERTY_RECORD_SIZE: usize = 1 << 5;
+pub const PROPERTY_RECORD_SHIFT: u32 = PROPERTY_RECORD_SIZE.trailing_zeros();
+
+pub const MAX_PROPERTY_RECORD_COUNT: usize =(PAGE_SIZE - PAGE_HEADER_SIZE - PROPERTY_HEADER_SIZE) / PROPERTY_RECORD_SIZE;

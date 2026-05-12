@@ -3,7 +3,7 @@ use core::option::Option::Some;
 use core::result::Result;
 
 use zerocopy::{FromBytes, IntoBytes, Immutable, KnownLayout};
-use zerocopy::byteorder::little_endian::{U64, U32, U16, U128};
+use zerocopy::byteorder::little_endian::{U64, U32, U128};
 
 use crate::storage::constants::{PAGE_SIZE, PAGE_HEADER_SIZE, SENTINEL_PAGE_ID};
 use crate::storage::models::{NexoraPageHeader, PageType};
@@ -88,15 +88,14 @@ impl RecordHeader for GraphNodePageHeader {
 #[derive(Debug, FromBytes, IntoBytes, Immutable, KnownLayout, Copy, Clone)]
 #[repr(C)]
 pub struct GraphNodeRecord {
-    pub node_id: U64,
+    pub node_id:        U64,
     pub first_out_edge: PackedPtr,
-    pub first_in_edge: PackedPtr,
-    property_page_id: U64,
-    label_id: U32,
-    property_slot: U16,
-    flags: u8,
+    pub first_in_edge:  PackedPtr,
+    pub properties:     PackedPtr,
+    pub label_id:       U32,
+    pub flags:          u8,
 
-    _pad: u8,
+    _pad: [u8; 3],
 }
 
 const _: () = assert!(
@@ -119,16 +118,15 @@ impl Record for GraphNodeRecord {
 }
 
 impl GraphNodeRecord {
-    pub fn new(node_id: u64, label_id: u32, property_page_id: u64, property_slot: u16) -> Self {
+    pub fn new(node_id: u64, label_id: u32, properties: PackedPtr) -> Self {
         GraphNodeRecord {
-            node_id:          U64::new(node_id),
-            first_out_edge:   PackedPtr::NULL,
-            first_in_edge:    PackedPtr::NULL,
-            property_page_id: U64::new(property_page_id),
-            label_id:         U32::new(label_id),
-            property_slot:    U16::new(property_slot),
-            flags:            GraphRecordFlag::ACTIVE as u8,
-            _pad:             0,
+            node_id:        U64::new(node_id),
+            first_out_edge: PackedPtr::NULL,
+            first_in_edge:  PackedPtr::NULL,
+            properties,
+            label_id:       U32::new(label_id),
+            flags:          GraphRecordFlag::ACTIVE as u8,
+            _pad:           [0u8; 3],
         }
     }
 }

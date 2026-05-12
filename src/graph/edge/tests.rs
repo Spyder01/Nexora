@@ -7,6 +7,7 @@ mod tests {
     use crate::graph::edge::graph_edge_store::GraphEdgeStore;
     use crate::graph::edge::constants::MAX_EDGE_RECORD_COUNT;
     use crate::graph::node::graph_node_store::GraphNodeStore;
+    use crate::graph::record::types::PackedPtr;
     use crate::storage::page_store_disk::RegularPageStore;
     use crate::storage::storage_manager::StorageManager;
 
@@ -25,7 +26,7 @@ mod tests {
 
     fn insert_nodes(manager: &mut StorageManager<RegularPageStore>, count: usize) -> Vec<u64> {
         let mut node_store = GraphNodeStore::new(manager);
-        (0..count).map(|_| node_store.insert_node(1, 0, 0).unwrap()).collect()
+        (0..count).map(|_| node_store.insert_node(1, PackedPtr::NULL).unwrap()).collect()
     }
 
     // Test 1 — basic insert and get round trip

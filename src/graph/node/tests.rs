@@ -6,7 +6,7 @@ mod tests {
     use crate::graph::node::constants::MAX_RECORD_COUNT;
     use crate::graph::node::error::NexoraGraphNodeError;
     use crate::graph::node::graph_node_store::GraphNodeStore;
-    use crate::graph::record::types::{Record};
+    use crate::graph::record::types::{PackedPtr, Record};
     use crate::storage::page_store_disk::RegularPageStore;
     use crate::storage::storage_manager::StorageManager;
 
@@ -28,7 +28,7 @@ mod tests {
         let mut manager = StorageManager::from_page_store(store).unwrap();
         let mut node_store = GraphNodeStore::new(&mut manager);
 
-        let node_id = node_store.insert_node(1, 0, 0).unwrap();
+        let node_id = node_store.insert_node(1, PackedPtr::NULL).unwrap();
         let record = node_store.get_node(node_id).unwrap();
 
         assert_eq!(record.id(), node_id);
@@ -62,7 +62,7 @@ mod tests {
         let mut manager = StorageManager::from_page_store(store).unwrap();
         let mut node_store = GraphNodeStore::new(&mut manager);
 
-        let node_id = node_store.insert_node(1, 0, 0).unwrap();
+        let node_id = node_store.insert_node(1, PackedPtr::NULL).unwrap();
         node_store.delete_node(node_id).unwrap();
 
         assert!(matches!(node_store.get_node(node_id), Err(NexoraGraphNodeError::NodeNotFound)));
@@ -97,7 +97,7 @@ mod tests {
         let mut node_store = GraphNodeStore::new(&mut manager);
 
         let ids: Vec<u64> = (0..10)
-            .map(|i| node_store.insert_node(i as u32, 0, 0).unwrap())
+            .map(|i| node_store.insert_node(i as u32, PackedPtr::NULL).unwrap())
             .collect();
 
         for id in &ids {
@@ -117,12 +117,12 @@ mod tests {
         let mut manager = StorageManager::from_page_store(store).unwrap();
         let mut node_store = GraphNodeStore::new(&mut manager);
 
-        let id1 = node_store.insert_node(1, 0, 0).unwrap();
-        let id2 = node_store.insert_node(1, 0, 0).unwrap();
-        let id3 = node_store.insert_node(1, 0, 0).unwrap();
+        let id1 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
+        let id2 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
+        let id3 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
 
         node_store.delete_node(id2).unwrap();
-        let id4 = node_store.insert_node(1, 0, 0).unwrap();
+        let id4 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
 
         node_store.get_node(id1).unwrap();
         node_store.get_node(id3).unwrap();
@@ -143,7 +143,7 @@ mod tests {
         let mut node_store = GraphNodeStore::new(&mut manager);
 
         let ids: Vec<u64> = (0..MAX_RECORD_COUNT + 5)
-            .map(|_| node_store.insert_node(1, 0, 0).unwrap())
+            .map(|_| node_store.insert_node(1, PackedPtr::NULL).unwrap())
             .collect();
 
         for id in &ids {
@@ -164,10 +164,9 @@ mod tests {
 
         let id_to_delete = {
             let mut node_store = GraphNodeStore::new(&mut manager);
-            node_store.insert_node(1, 0, 0).unwrap();
-            node_store.insert_node(1, 0, 0).unwrap();
-            let id = node_store.insert_node(1, 0, 0).unwrap();
-            id
+            node_store.insert_node(1, PackedPtr::NULL).unwrap();
+            node_store.insert_node(1, PackedPtr::NULL).unwrap();
+            node_store.insert_node(1, PackedPtr::NULL).unwrap()
         };
 
         assert_eq!(manager.footer.node_count.get(), 3);
@@ -193,7 +192,7 @@ mod tests {
             let mut manager = StorageManager::from_page_store(store).unwrap();
             let id = {
                 let mut node_store = GraphNodeStore::new(&mut manager);
-                node_store.insert_node(1, 0, 0).unwrap()
+                node_store.insert_node(1, PackedPtr::NULL).unwrap()
             };
             manager.close().unwrap();
             id
@@ -221,7 +220,7 @@ mod tests {
         let mut node_store = GraphNodeStore::new(&mut manager);
 
         let ids: Vec<u64> = (0..5)
-            .map(|_| node_store.insert_node(1, 0, 0).unwrap())
+            .map(|_| node_store.insert_node(1, PackedPtr::NULL).unwrap())
             .collect();
 
         for id in &ids {

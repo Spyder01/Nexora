@@ -30,6 +30,8 @@ pub enum PageType {
   Index    = 5,
   Label    = 6,
   Free     = 7,
+  String   = 8,
+  Property = 9,
 }
 
 impl TryFrom<u8> for PageType {
@@ -45,6 +47,8 @@ impl TryFrom<u8> for PageType {
           5 => Ok(PageType::Index),
           6 => Ok(PageType::Label),
           7 => Ok(PageType::Free),
+          8 => Ok(PageType::String),
+          9 => Ok(PageType::Property),
           unknown => Err(unknown),
       }
   }
@@ -111,6 +115,8 @@ pub const INITIAL_HEADER: NexoraHeader = NexoraHeader {
     _pad:           [0u8; PAGE_SIZE - PAGE_HEADER_SIZE - 4 - 4 - 8 - 4],
 };
 
+const NEXORA_FOOTER_PAGE_PADDING: usize = PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8;
+
 
 #[derive(Debug, FromBytes, IntoBytes, Immutable, KnownLayout, Copy, Clone)]
 #[repr(C)]
@@ -134,9 +140,16 @@ pub struct NexoraFooter {
     pub free_pages_count:            U64,
     pub first_free_page:             U64,
 
+    pub first_string_page:           U64,
+
+    pub label_pages_count:           U64,
+    pub first_label_page:            U64,
+
+    pub first_property_page:         U64,
+
     pub page_count:                  U64,
 
-    pub _pad: [u8; PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8],
+    pub _pad: [u8; NEXORA_FOOTER_PAGE_PADDING],
 }
 
 const _: () = assert!(
@@ -165,8 +178,13 @@ pub const INITIAL_FOOTER: NexoraFooter = NexoraFooter {
     first_index_page:            U64::new(SENTINEL_PAGE_ID),
     free_pages_count:            U64::new(0),
     first_free_page:             U64::new(SENTINEL_PAGE_ID),
+    first_string_page:           U64::new(SENTINEL_PAGE_ID),
+    label_pages_count:           U64::new(0),
+    first_label_page:            U64::new(SENTINEL_PAGE_ID),
+    first_property_page:         U64::new(SENTINEL_PAGE_ID),
     page_count:                  U64::new(2), // pages 0 (header) and 1 (footer) already used
-    _pad:                        [0u8; PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8],
+                                              
+    _pad:                        [0u8; NEXORA_FOOTER_PAGE_PADDING],
 };
 
 

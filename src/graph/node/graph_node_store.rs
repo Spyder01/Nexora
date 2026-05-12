@@ -21,11 +21,10 @@ impl<'a, S: PageStore> GraphNodeStore<'a, S> {
     pub fn insert_node(
         &mut self,
         label_id: u32,
-        property_page_id: u64,
-        property_slot: u16,
+        properties: crate::graph::record::types::PackedPtr,
     ) -> Result<u64, NexoraGraphNodeError> {
         let node_id = self.storage.footer.next_node_id.get();
-        let node = GraphNodeRecord::new(node_id, label_id, property_page_id, property_slot);
+        let node = GraphNodeRecord::new(node_id, label_id, properties);
 
         let mut page_id_val = self.storage.footer.first_node_page.get();
         while page_id_val != SENTINEL_PAGE_ID {
