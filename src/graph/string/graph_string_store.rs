@@ -5,6 +5,7 @@ use crate::storage::storage_manager::StorageManager;
 use crate::storage::page_store::PageStore;
 use crate::storage::models::{PageId, PageType};
 use crate::storage::constants::{PAGE_SIZE, SENTINEL_PAGE_ID};
+use crate::storage::error::NexoraStorageError;
 
 use crate::graph::string::page::GraphStringPage;
 use crate::graph::string::error::NexoraGraphStringError;
@@ -58,7 +59,8 @@ impl<'a, S: PageStore> StringStore<'a, S> {
             let page_id = PageId(current_ptr.page_id());
             let mut buf = [0u8; PAGE_SIZE];
             self.storage.store.read_page(page_id, &mut buf, true)?;
-            let page = *GraphStringPage::ref_from_bytes(&buf[..]).unwrap();
+            let page = *GraphStringPage::ref_from_bytes(&buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(current_ptr.page_id()))?;
 
             let slot = page.get_slot(current_ptr.slot() as usize)?;
 
@@ -83,6 +85,26 @@ impl<'a, S: PageStore> StringStore<'a, S> {
         Ok(total_length)
     }
 
+    pub fn delete(&mut self, ptr: PackedPtr) -> Result<(), NexoraGraphStringError> {
+        let mut current_ptr = ptr;
+        while !current_ptr.is_null() {
+            let page_id = PageId(current_ptr.page_id());
+            let mut buf = [0u8; PAGE_SIZE];
+            self.storage.store.read_page(page_id, &mut buf, true)?;
+            let mut page = *GraphStringPage::ref_from_bytes(&buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(current_ptr.page_id()))?;
+
+            let slot = page.get_slot(current_ptr.slot() as usize)?;
+            let next_ptr = slot.overflow_slot;
+
+            page.delete_slot(current_ptr.slot() as usize);
+            self.storage.store.write_page(page_id, page.as_bytes().try_into().expect("GraphStringPage is PAGE_SIZE"), true)?;
+
+            current_ptr = next_ptr;
+        }
+        Ok(())
+    }
+
     fn insert_into_page(
         &mut self,
         data: &[u8],
@@ -95,11 +117,12 @@ impl<'a, S: PageStore> StringStore<'a, S> {
             let page_id = PageId(page_id_val);
             let mut buf = [0u8; PAGE_SIZE];
             self.storage.store.read_page(page_id, &mut buf, true)?;
-            let mut page = *GraphStringPage::ref_from_bytes(&buf[..]).unwrap();
+            let mut page = *GraphStringPage::ref_from_bytes(&buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
 
             if page.has_space(data.len()) {
                 let slot = page.insert_slot(total_length, data, overflow)?;
-                self.storage.store.write_page(page_id, page.as_bytes().try_into().unwrap(), true)?;
+                self.storage.store.write_page(page_id, page.as_bytes().try_into().expect("GraphStringPage is PAGE_SIZE"), true)?;
                 return Ok((page_id, slot));
             }
 
@@ -123,7 +146,7 @@ impl<'a, S: PageStore> StringStore<'a, S> {
         page.page_header.page_type    = PageType::String as u8;
 
         let slot = page.insert_slot(total_length, data, overflow)?;
-        self.storage.store.write_page(new_page_id, page.as_bytes().try_into().unwrap(), true)?;
+        self.storage.store.write_page(new_page_id, page.as_bytes().try_into().expect("GraphStringPage is PAGE_SIZE"), true)?;
 
         self.storage.footer.first_string_page = U64::new(new_page_id.as_u64());
         self.storage.mark_footer_dirty();

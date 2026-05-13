@@ -5,6 +5,7 @@ use crate::storage::storage_manager::StorageManager;
 use crate::storage::page_store::PageStore;
 use crate::storage::models::PageId;
 use crate::storage::constants::{PAGE_SIZE, SENTINEL_PAGE_ID};
+use crate::storage::error::NexoraStorageError;
 
 use crate::graph::label::page::GraphLabelPage;
 use crate::graph::label::error::NexoraGraphLabelError;
@@ -52,7 +53,8 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
             let page_id = PageId(page_id_val);
             let mut buf = [0u8; PAGE_SIZE];
             self.storage.store.read_page(page_id, &mut buf, true)?;
-            let page = *GraphLabelPage::ref_from_bytes(&buf[..]).unwrap();
+            let page = *GraphLabelPage::ref_from_bytes(&buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
 
             if page.label_page_header.exists(label_id) {
                 return Ok(page.get_entry(label_id)?);
@@ -75,11 +77,12 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
             let page_id = PageId(page_id_val);
             let mut buf = [0u8; PAGE_SIZE];
             self.storage.store.read_page(page_id, &mut buf, true)?;
-            let mut page = *GraphLabelPage::ref_from_bytes(&buf[..]).unwrap();
+            let mut page = *GraphLabelPage::ref_from_bytes(&buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
 
             if !page.label_page_header.is_full() {
                 page.insert_entry(label_id, ptr)?;
-                self.storage.store.write_page(page_id, page.as_bytes().try_into().unwrap(), true)?;
+                self.storage.store.write_page(page_id, page.as_bytes().try_into().expect("GraphLabelPage is PAGE_SIZE"), true)?;
                 return Ok(());
             }
 
@@ -101,7 +104,7 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
         page.page_header.next_page_id = U64::new(old_first);
 
         page.insert_entry(label_id, ptr)?;
-        self.storage.store.write_page(new_page_id, page.as_bytes().try_into().unwrap(), true)?;
+        self.storage.store.write_page(new_page_id, page.as_bytes().try_into().expect("GraphLabelPage is PAGE_SIZE"), true)?;
 
         self.storage.footer.first_label_page = U64::new(new_page_id.as_u64());
         self.storage.mark_footer_dirty();

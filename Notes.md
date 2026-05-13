@@ -90,6 +90,10 @@ _pad:             u8    — 1 byte    (offset 39)
 
 - STRING Page todo: String page slots double as a free list for the data area. When a slot is deleted, its `offset` and `chunk_length` fields describe a free region of the data area. On insert, scan free slots (via `~occupied & bounds_mask`) for one with `chunk_length >= new_chunk_size`. Reuse it — write new string bytes at `offset`. If new string is smaller, create a new free slot pointing to the leftover region (`offset + new_chunk_size`, `chunk_length = leftover`). If no suitable free slot, fall back to appending normally. Limitation: external fragmentation (small free slots accumulate, adjacent free regions can't easily be coalesced). Implement this only after basic insert/read is working correctly.
 
+## Optimizations
+
+- SIMD bitset scans: `Bitset256` is `[U64; 4]` = 256 bits, fitting exactly in an AVX2 YMM register. `first_zero()`/`first_set()` currently loop over 4 × 64-bit words sequentially. With AVX2, all 256 bits load in one `VMOVDQU`, compare in one `VPCMPEQQ`, collapse to a mask in one `VPMOVMSKB` — finding the first non-full lane in ~3 instructions instead of a loop. The 128-bit `U128` in node page headers maps to SSE2 XMM registers (baseline x86-64, no feature gate needed). The natural atom is 64 bits — `TZCNT` on a `u64` is already one instruction that processes all 64 bits in hardware. Nothing below 64 bits benefits. Gate AVX2 paths behind `#[cfg(target_feature = "avx2")]` with scalar fallback.
+
 ## TODO
 - Implement MmapPageStore using the `mmap2` Rust crate. Pre-allocate a large virtual address space upfront to avoid remapping on every page allocation. Use MAP_SHARED so writes go back to the file. Call msync() on flush/close for crash safety.
 - Optimize `insert_node` page traversal: read only `NexoraPageHeader + GraphNodePageHeader` (80 bytes) first to check free slots via zone map and bitset, then read the full 4KB page only if a free slot exists. Avoids 4KB reads for full pages during chain traversal. Use a new `read_node_page_header` method alongside the existing `read_page_header_unchecked`. Only meaningful when the chain contains many full pages.

@@ -5,4 +5,5 @@ pub mod string;
 pub mod label;
 pub mod property;
 pub mod graphstore;
+pub mod models;
 

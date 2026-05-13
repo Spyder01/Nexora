@@ -213,6 +213,37 @@ mod tests {
         cleanup(&path);
     }
 
+    // Test 13 — delete frees all chunks in an overflow chain
+    #[test]
+    fn test_delete_string() {
+        let path = tmp_path("test_str_delete.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+
+        // Single-chunk string
+        let ptr = {
+            let mut store = StringStore::new(&mut manager);
+            store.insert(b"hello").unwrap()
+        };
+        {
+            let mut store = StringStore::new(&mut manager);
+            store.delete(ptr).unwrap();
+        }
+
+        // Multi-chunk string — spans two pages
+        let data: Vec<u8> = (0u8..=255).cycle().take(MAX_STRING_CHUNK_SIZE + 100).collect();
+        let ptr2 = {
+            let mut store = StringStore::new(&mut manager);
+            store.insert(&data).unwrap()
+        };
+        {
+            let mut store = StringStore::new(&mut manager);
+            store.delete(ptr2).unwrap();
+        }
+
+        cleanup(&path);
+    }
+
     // Test 12 — enough strings to fill one page, spill to a second
     #[test]
     fn test_page_overflow_to_new_page() {

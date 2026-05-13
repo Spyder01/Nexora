@@ -115,7 +115,8 @@ impl GraphStringPage {
             return Err(NexoraGraphStringError::SlotNotFound);
         }
         let start = index << STRING_PAGE_SLOT_SHIFT;
-        Ok(*GraphStringSlot::ref_from_bytes(&self.buf[start..start + STRING_PAGE_SLOT_SIZE]).unwrap())
+        Ok(*GraphStringSlot::ref_from_bytes(&self.buf[start..start + STRING_PAGE_SLOT_SIZE])
+            .expect("slice length and alignment guaranteed by compile-time assert"))
     }
 
     pub fn delete_slot(&mut self, index: usize) {

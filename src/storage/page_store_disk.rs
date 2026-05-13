@@ -26,11 +26,11 @@ impl RegularPageStore {
   }
 
   fn write_default_header(&self) -> Result<(), NexoraStorageError> {
-      self.write_page(PageId(0), INITIAL_HEADER.as_bytes().try_into().unwrap(), true)
+      self.write_page(PageId(0), INITIAL_HEADER.as_bytes().try_into().expect("INITIAL_HEADER is PAGE_SIZE"), true)
   }
 
   fn write_default_footer(&self) -> Result<(), NexoraStorageError> {
-      self.write_page(PageId(1), INITIAL_FOOTER.as_bytes().try_into().unwrap(), true)
+      self.write_page(PageId(1), INITIAL_FOOTER.as_bytes().try_into().expect("INITIAL_FOOTER is PAGE_SIZE"), true)
   }
 
   pub fn open(path: &std::path::Path) -> Result<Self, NexoraStorageError> {

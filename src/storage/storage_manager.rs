@@ -66,7 +66,7 @@ impl<S: PageStore> StorageManager<S> {
             return Ok(());
         }
 
-        let footer_bytes: &[u8; PAGE_SIZE] = self.footer.as_bytes().try_into().unwrap();
+        let footer_bytes: &[u8; PAGE_SIZE] = self.footer.as_bytes().try_into().expect("NexoraFooter is PAGE_SIZE");
         self.store.write_page(PageId(self.header.footer_page_id.get()), footer_bytes, true)?;
         self.footer_dirty = false;
 

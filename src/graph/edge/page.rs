@@ -109,6 +109,29 @@ impl GraphEdgeRecord {
     pub fn src_node_id(&self) -> u64    { self.src_node_id.get() }
     pub fn dst_node_id(&self) -> u64    { self.dst_node_id.get() }
     pub fn weight(&self) -> f64         { self.weight.get() }
+    pub fn label_id(&self) -> u32       { self.label_id.get() }
+
+    pub fn properties(&self) -> PackedPtr {
+        if self.property_page_id.get() == SENTINEL_PAGE_ID {
+            PackedPtr::NULL
+        } else {
+            PackedPtr::new(self.property_page_id.get(), self.property_slot.get() as u8)
+        }
+    }
+
+    pub fn set_label_id(&mut self, label_id: u32) {
+        self.label_id = U32::new(label_id);
+    }
+
+    pub fn set_properties(&mut self, ptr: PackedPtr) {
+        if ptr.is_null() {
+            self.property_page_id = U64::new(SENTINEL_PAGE_ID);
+            self.property_slot    = U16::new(0);
+        } else {
+            self.property_page_id = U64::new(ptr.page_id());
+            self.property_slot    = U16::new(ptr.slot() as u16);
+        }
+    }
 }
 
 

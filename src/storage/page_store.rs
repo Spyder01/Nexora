@@ -17,7 +17,7 @@ pub trait PageStore {
     fn read_page_header_unchecked(&self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError>;
 
     fn get_checksum(buf: &[u8; PAGE_SIZE]) -> u32 {
-        u32::from_le_bytes(buf[CHECKSUM_OFFSET..CHECKSUM_OFFSET + CHECKSUM_LEN].try_into().unwrap())
+        u32::from_le_bytes(buf[CHECKSUM_OFFSET..CHECKSUM_OFFSET + CHECKSUM_LEN].try_into().expect("slice is always CHECKSUM_LEN bytes"))
     }
 
     fn verify_checksum(buf: &[u8; PAGE_SIZE], stored: u32) -> bool {

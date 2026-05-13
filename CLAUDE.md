@@ -54,3 +54,16 @@ Since the project is in early stages, the following reflects the intended archit
 - **Query interface**: A graph traversal/query API (rather than SQL) is the intended query surface.
 
 As the engine grows, expect modules for: file I/O / page management, graph storage (node/edge index), in-memory cache, and the query/traversal engine.
+
+ ## Heap Allocation Policy
+
+Avoid heap allocation (`Vec`, `String`, `Box`, `Arc`, etc.) in storage and graph layer code unless
+there is no stack-based alternative. Before introducing any heap allocation:
+
+1. **Explain why a stack buffer or fixed-size type cannot work** — e.g., size is not known at
+   compile time and cannot be bounded, or the data must outlive the current stack frame.
+2. **Get explicit approval from the user** before writing the allocating code.
+
+Known accepted allocations (approved, do not flag these):
+- `Node.label: String` and `Edge.label: String` in `models.rs` — temporary until Phase 3
+  buffer pool allows returning `&str` borrowed from a pinned page. Marked with TODO(phase3).
