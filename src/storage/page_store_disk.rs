@@ -19,17 +19,17 @@ impl RegularPageStore {
           .create_new(true)
           .open(path)?;
 
-      let store = RegularPageStore { file };
+      let mut store = RegularPageStore { file };
       store.write_default_header()?;
       store.write_default_footer()?;
       Ok(store)
   }
 
-  fn write_default_header(&self) -> Result<(), NexoraStorageError> {
+  fn write_default_header(&mut self) -> Result<(), NexoraStorageError> {
       self.write_page(PageId(0), INITIAL_HEADER.as_bytes().try_into().expect("INITIAL_HEADER is PAGE_SIZE"), true)
   }
 
-  fn write_default_footer(&self) -> Result<(), NexoraStorageError> {
+  fn write_default_footer(&mut self) -> Result<(), NexoraStorageError> {
       self.write_page(PageId(1), INITIAL_FOOTER.as_bytes().try_into().expect("INITIAL_FOOTER is PAGE_SIZE"), true)
   }
 
@@ -44,7 +44,7 @@ impl RegularPageStore {
 
 
 impl PageStore for RegularPageStore {
-    fn read_page(&self, page_id: PageId, buf: &mut [u8; PAGE_SIZE], verify_checksum: bool) -> Result<(), NexoraStorageError> {
+    fn read_page(&mut self, page_id: PageId, buf: &mut [u8; PAGE_SIZE], verify_checksum: bool) -> Result<(), NexoraStorageError> {
         self.file.read_exact_at(buf, page_id.byte_offset())?;
         let stored = Self::get_checksum(buf);
         if verify_checksum && !Self::verify_checksum(buf, stored) {
@@ -53,7 +53,7 @@ impl PageStore for RegularPageStore {
         Ok(())
     }
 
-    fn write_page(&self, page_id: PageId, buf: &[u8; PAGE_SIZE], stamp_checksum: bool) -> Result<(), NexoraStorageError> {
+    fn write_page(&mut self, page_id: PageId, buf: &[u8; PAGE_SIZE], stamp_checksum: bool) -> Result<(), NexoraStorageError> {
         let mut page = *buf;
 
         if stamp_checksum {
@@ -64,7 +64,7 @@ impl PageStore for RegularPageStore {
         Ok(())
     }
 
-    fn read_page_header_unchecked(&self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError> {
+    fn read_page_header_unchecked(&mut self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError> {
         let mut buf = [0u8; PAGE_HEADER_SIZE];
         self.file.read_exact_at(&mut buf, page_id.byte_offset())?;
         let header = NexoraPageHeader::ref_from_bytes(&buf)

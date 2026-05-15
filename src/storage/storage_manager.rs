@@ -15,7 +15,7 @@ pub struct StorageManager<S: PageStore> {
 }
 
 impl<S: PageStore> StorageManager<S> {
-    fn read_header(store: &S) -> Result<NexoraHeader, NexoraStorageError> {
+    fn read_header(store: &mut S) -> Result<NexoraHeader, NexoraStorageError> {
 
       let mut buf = [0u8; PAGE_SIZE];
       store.read_page(PageId(0), &mut buf, true)?;
@@ -34,7 +34,7 @@ impl<S: PageStore> StorageManager<S> {
       Ok(*header)
     }
 
-    fn read_footer(store: &S, header: &NexoraHeader) -> Result<NexoraFooter, NexoraStorageError> {
+    fn read_footer(store: &mut S, header: &NexoraHeader) -> Result<NexoraFooter, NexoraStorageError> {
      let footer_page_id = PageId(header.footer_page_id.get());
 
       let mut buf = [0u8; PAGE_SIZE];
@@ -50,9 +50,9 @@ impl<S: PageStore> StorageManager<S> {
         StorageManager { store, header, footer, footer_dirty: false }
     }
 
-    pub fn from_page_store(store: S) -> Result<Self, NexoraStorageError> {
-        let header = StorageManager::read_header(&store)?;
-        let footer = StorageManager::read_footer(&store, &header)?;
+    pub fn from_page_store(mut store: S) -> Result<Self, NexoraStorageError> {
+        let header = StorageManager::read_header(&mut store)?;
+        let footer = StorageManager::read_footer(&mut store, &header)?;
 
         return Ok(StorageManager { store, header, footer, footer_dirty: false });
     }
@@ -62,15 +62,13 @@ impl<S: PageStore> StorageManager<S> {
     }
 
     pub fn close(&mut self) -> Result<(), NexoraStorageError> {
-        if !self.footer_dirty {
-            return Ok(());
+        if self.footer_dirty {
+            let footer_bytes: &[u8; PAGE_SIZE] = self.footer.as_bytes().try_into().expect("NexoraFooter is PAGE_SIZE");
+            self.store.write_page(PageId(self.header.footer_page_id.get()), footer_bytes, true)?;
+            self.footer_dirty = false;
         }
 
-        let footer_bytes: &[u8; PAGE_SIZE] = self.footer.as_bytes().try_into().expect("NexoraFooter is PAGE_SIZE");
-        self.store.write_page(PageId(self.header.footer_page_id.get()), footer_bytes, true)?;
-        self.footer_dirty = false;
-
-        Ok(())
+        self.store.close()
     }
 
     pub fn allocate_page(&mut self) -> Result<PageId, NexoraStorageError> {

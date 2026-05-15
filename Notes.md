@@ -93,6 +93,13 @@ _pad:             u8    — 1 byte    (offset 39)
 ## Optimizations
 
 - SIMD bitset scans: `Bitset256` is `[U64; 4]` = 256 bits, fitting exactly in an AVX2 YMM register. `first_zero()`/`first_set()` currently loop over 4 × 64-bit words sequentially. With AVX2, all 256 bits load in one `VMOVDQU`, compare in one `VPCMPEQQ`, collapse to a mask in one `VPMOVMSKB` — finding the first non-full lane in ~3 instructions instead of a loop. The 128-bit `U128` in node page headers maps to SSE2 XMM registers (baseline x86-64, no feature gate needed). The natural atom is 64 bits — `TZCNT` on a `u64` is already one instruction that processes all 64 bits in hardware. Nothing below 64 bits benefits. Gate AVX2 paths behind `#[cfg(target_feature = "avx2")]` with scalar fallback.
+- SIMD for `find_frame` in BufferStore: scanning 256 `page_ids` ([u64; 256] = 2048 bytes) to find a matching PageId is the right place for SIMD — 256 comparisons with no I/O between them. AVX2 can compare 4 × u64 per instruction. `flush_all` is NOT a SIMD candidate — the bottleneck there is the disk write syscall inside each `flush_frame`, not the dirty bit scan (4 × u64 words, nanoseconds vs microseconds for I/O).
+
+## Future Optimization
+- Inline string optimization for GraphPropertyRecord only (not labels). Replace key_ptr/val_ptr PackedPtr (8 bytes each) with 24-byte inline string headers: [len: 4 | buffer: 12 | ptr: 8]. Short strings (≤12 bytes) stored inline with zero page lookups. Long strings store 4-byte prefix inline + PackedPtr to page chain. Labels stay as label_id (u32) — already deduplicated, no benefit from inlining. Benefit: eliminates page lookups for short property keys/values (name, age, weight etc). Cost: PropertyRecord grows from 24 to 56 bytes, records per page drops from ~170 to ~73.
+
+## Future Cleanup
+- `close()` on `PageStore` trait is a design smell — lifecycle is not an I/O primitive concern. Options: (1) second trait bound `S: PageStore + Closeable`; (2) implement `Drop` on `BufferStore` to flush dirty frames — guarantees flush even if caller forgets `close()`, but `Drop` cannot return `Result` so I/O errors are silently swallowed. Refactor when design hardens.
 
 ## TODO
 - Implement MmapPageStore using the `mmap2` Rust crate. Pre-allocate a large virtual address space upfront to avoid remapping on every page allocation. Use MAP_SHARED so writes go back to the file. Call msync() on flush/close for crash safety.

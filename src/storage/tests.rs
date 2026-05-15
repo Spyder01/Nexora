@@ -89,7 +89,7 @@ mod tests {
         }
 
         let store = RegularPageStore::open(&path).unwrap();
-        let manager = StorageManager::from_page_store(store).unwrap();
+        let mut manager = StorageManager::from_page_store(store).unwrap();
         let page_id = PageId(2);
         let mut buf = [0u8; PAGE_SIZE];
         let result = manager.store.read_page(page_id, &mut buf, true);

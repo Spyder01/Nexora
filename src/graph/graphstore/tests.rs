@@ -2,8 +2,9 @@
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-
     use crate::graph::graphstore::graphstore::GraphStore;
+
+    const LARGE_STACK: usize = 16 * 1024 * 1024;
 
     fn tmp_path(name: &str) -> PathBuf {
         std::env::temp_dir().join(name)
@@ -13,21 +14,29 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
 
+    fn run<F: FnOnce() + Send + 'static>(f: F) {
+        std::thread::Builder::new()
+            .stack_size(LARGE_STACK)
+            .spawn(f)
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
     // Test 1 — insert and get node round trip
     #[test]
     fn test_insert_and_get_node() {
         let path = tmp_path("test_gs_insert_get_node.nxra");
         cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        let node = gs.get_node(id).unwrap();
-
-        assert_eq!(node.id, id);
-        assert_eq!(node.label, "Person");
-
-        gs.close().unwrap();
-        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            let node = gs.get_node(id).unwrap();
+            assert_eq!(node.id, id);
+            assert_eq!(node.label, "Person");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
     }
 
     // Test 2 — delete node then get returns error
@@ -35,15 +44,14 @@ mod tests {
     fn test_delete_node() {
         let path = tmp_path("test_gs_delete_node.nxra");
         cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.delete_node(id).unwrap();
-
-        assert!(gs.get_node(id).is_err());
-
-        gs.close().unwrap();
-        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.delete_node(id).unwrap();
+            assert!(gs.get_node(id).is_err());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
     }
 
     // Test 3 — insert and get edge round trip
@@ -51,22 +59,20 @@ mod tests {
     fn test_insert_and_get_edge() {
         let path = tmp_path("test_gs_insert_get_edge.nxra");
         cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("Person").unwrap();
-        let b = gs.insert_node("Person").unwrap();
-
-        let eid = gs.insert_edge(a, b, "KNOWS", 1.0).unwrap();
-        let edge = gs.get_edge(eid).unwrap();
-
-        assert_eq!(edge.id, eid);
-        assert_eq!(edge.src, a);
-        assert_eq!(edge.dst, b);
-        assert_eq!(edge.label, "KNOWS");
-        assert_eq!(edge.weight, 1.0);
-
-        gs.close().unwrap();
-        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("Person").unwrap();
+            let b = gs.insert_node("Person").unwrap();
+            let eid = gs.insert_edge(a, b, "KNOWS", 1.0).unwrap();
+            let edge = gs.get_edge(eid).unwrap();
+            assert_eq!(edge.id, eid);
+            assert_eq!(edge.src, a);
+            assert_eq!(edge.dst, b);
+            assert_eq!(edge.label, "KNOWS");
+            assert_eq!(edge.weight, 1.0);
+            gs.close().unwrap();
+            cleanup(&path);
+        });
     }
 
     // Test 4 — delete edge then get returns error
@@ -74,18 +80,16 @@ mod tests {
     fn test_delete_edge() {
         let path = tmp_path("test_gs_delete_edge.nxra");
         cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-
-        let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        gs.delete_edge(eid).unwrap();
-
-        assert!(gs.get_edge(eid).is_err());
-
-        gs.close().unwrap();
-        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            gs.delete_edge(eid).unwrap();
+            assert!(gs.get_edge(eid).is_err());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
     }
 
     // Test 5 — outgoing cursor visits all edges from a node
@@ -93,27 +97,24 @@ mod tests {
     fn test_outgoing_cursor() {
         let path = tmp_path("test_gs_outgoing_cursor.nxra");
         cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let c = gs.insert_node("C").unwrap();
-
-        let e1 = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        let e2 = gs.insert_edge(a, c, "REL", 2.0).unwrap();
-
-        let mut cursor = gs.outgoing_cursor(a).unwrap();
-        let mut ids = Vec::new();
-        while let Some(edge) = gs.next_outgoing(&mut cursor).unwrap() {
-            ids.push(edge.id);
-        }
-
-        assert_eq!(ids.len(), 2);
-        assert!(ids.contains(&e1));
-        assert!(ids.contains(&e2));
-
-        gs.close().unwrap();
-        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let c = gs.insert_node("C").unwrap();
+            let e1 = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            let e2 = gs.insert_edge(a, c, "REL", 2.0).unwrap();
+            let mut cursor = gs.outgoing_cursor(a).unwrap();
+            let mut ids = Vec::new();
+            while let Some(edge) = gs.next_outgoing(&mut cursor).unwrap() {
+                ids.push(edge.id);
+            }
+            assert_eq!(ids.len(), 2);
+            assert!(ids.contains(&e1));
+            assert!(ids.contains(&e2));
+            gs.close().unwrap();
+            cleanup(&path);
+        });
     }
 
     // Test 6 — incoming cursor visits all edges to a node
@@ -121,27 +122,24 @@ mod tests {
     fn test_incoming_cursor() {
         let path = tmp_path("test_gs_incoming_cursor.nxra");
         cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let c = gs.insert_node("C").unwrap();
-
-        let e1 = gs.insert_edge(a, c, "REL", 1.0).unwrap();
-        let e2 = gs.insert_edge(b, c, "REL", 2.0).unwrap();
-
-        let mut cursor = gs.incoming_cursor(c).unwrap();
-        let mut ids = Vec::new();
-        while let Some(edge) = gs.next_incoming(&mut cursor).unwrap() {
-            ids.push(edge.id);
-        }
-
-        assert_eq!(ids.len(), 2);
-        assert!(ids.contains(&e1));
-        assert!(ids.contains(&e2));
-
-        gs.close().unwrap();
-        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let c = gs.insert_node("C").unwrap();
+            let e1 = gs.insert_edge(a, c, "REL", 1.0).unwrap();
+            let e2 = gs.insert_edge(b, c, "REL", 2.0).unwrap();
+            let mut cursor = gs.incoming_cursor(c).unwrap();
+            let mut ids = Vec::new();
+            while let Some(edge) = gs.next_incoming(&mut cursor).unwrap() {
+                ids.push(edge.id);
+            }
+            assert_eq!(ids.len(), 2);
+            assert!(ids.contains(&e1));
+            assert!(ids.contains(&e2));
+            gs.close().unwrap();
+            cleanup(&path);
+        });
     }
 
     // Test 7 — nodes and edges survive close and reopen
@@ -149,632 +147,25 @@ mod tests {
     fn test_persistence() {
         let path = tmp_path("test_gs_persistence.nxra");
         cleanup(&path);
-
-        let (node_id, edge_id) = {
-            let mut gs = GraphStore::create(&path).unwrap();
-            let a = gs.insert_node("Person").unwrap();
-            let b = gs.insert_node("City").unwrap();
-            let eid = gs.insert_edge(a, b, "LIVES_IN", 42.0).unwrap();
-            gs.close().unwrap();
-            (a, eid)
-        };
-
-        {
-            let mut gs = GraphStore::open(&path).unwrap();
-            let node = gs.get_node(node_id).unwrap();
-            let edge = gs.get_edge(edge_id).unwrap();
-
-            assert_eq!(node.label, "Person");
-            assert_eq!(edge.label, "LIVES_IN");
-            assert_eq!(edge.weight, 42.0);
-        }
-
-        cleanup(&path);
-    }
-
-    // Test 9 — set and get a node property
-    #[test]
-    fn test_set_and_get_node_property() {
-        let path = tmp_path("test_gs_node_prop.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-
-        let mut buf = [0u8; 256];
-        let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"Alice");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 10 — updating an existing node property replaces the value
-    #[test]
-    fn test_update_node_property() {
-        let path = tmp_path("test_gs_node_prop_update.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-        gs.set_node_property(id, "name", "Bob").unwrap();
-
-        let mut buf = [0u8; 256];
-        let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"Bob");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 11 — multiple properties on the same node
-    #[test]
-    fn test_multiple_node_properties() {
-        let path = tmp_path("test_gs_multi_node_props.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-        gs.set_node_property(id, "age", "30").unwrap();
-
-        let mut buf = [0u8; 256];
-        let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"Alice");
-
-        let len = gs.get_node_property(id, "age", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"30");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 12 — get a nonexistent property returns None
-    #[test]
-    fn test_get_missing_property() {
-        let path = tmp_path("test_gs_missing_prop.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-
-        let mut buf = [0u8; 256];
-        assert!(gs.get_node_property(id, "name", &mut buf).unwrap().is_none());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 13 — set and get an edge property
-    #[test]
-    fn test_set_and_get_edge_property() {
-        let path = tmp_path("test_gs_edge_prop.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        gs.set_edge_property(eid, "since", "2024").unwrap();
-
-        let mut buf = [0u8; 256];
-        let len = gs.get_edge_property(eid, "since", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"2024");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 14 — node properties survive close and reopen
-    #[test]
-    fn test_node_property_persistence() {
-        let path = tmp_path("test_gs_prop_persist.nxra");
-        cleanup(&path);
-
-        let node_id = {
-            let mut gs = GraphStore::create(&path).unwrap();
-            let id = gs.insert_node("Person").unwrap();
-            gs.set_node_property(id, "name", "Alice").unwrap();
-            gs.close().unwrap();
-            id
-        };
-
-        {
-            let mut gs = GraphStore::open(&path).unwrap();
-            let mut buf = [0u8; 256];
-            let len = gs.get_node_property(node_id, "name", &mut buf).unwrap().unwrap();
-            assert_eq!(&buf[..len as usize], b"Alice");
-        }
-
-        cleanup(&path);
-    }
-
-    // Test 15 — deleting a node also deletes its incident edges
-    #[test]
-    fn test_delete_node_cascades() {
-        let path = tmp_path("test_gs_cascade.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let c = gs.insert_node("C").unwrap();
-
-        let e1 = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        let e2 = gs.insert_edge(c, a, "REL", 2.0).unwrap();
-
-        gs.delete_node(a).unwrap();
-
-        assert!(gs.get_edge(e1).is_err());
-        assert!(gs.get_edge(e2).is_err());
-
-        // Other nodes and edges still intact
-        assert!(gs.get_node(b).is_ok());
-        assert!(gs.get_node(c).is_ok());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 16 — self-loop is cleaned up on node delete
-    #[test]
-    fn test_delete_node_self_loop() {
-        let path = tmp_path("test_gs_self_loop_cascade.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let eid = gs.insert_edge(a, a, "SELF", 0.0).unwrap();
-
-        gs.delete_node(a).unwrap();
-
-        assert!(gs.get_edge(eid).is_err());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 17 — delete a node property, subsequent get returns None
-    #[test]
-    fn test_delete_node_property() {
-        let path = tmp_path("test_gs_delete_node_prop.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-
-        assert!(gs.delete_node_property(id, "name").unwrap());
-
-        let mut buf = [0u8; 256];
-        assert!(gs.get_node_property(id, "name", &mut buf).unwrap().is_none());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 18 — delete a nonexistent node property returns false
-    #[test]
-    fn test_delete_nonexistent_node_property() {
-        let path = tmp_path("test_gs_delete_missing_prop.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-
-        assert!(!gs.delete_node_property(id, "name").unwrap());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 19 — delete middle property, head and tail remain intact
-    #[test]
-    fn test_delete_middle_node_property() {
-        let path = tmp_path("test_gs_delete_mid_prop.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "a", "1").unwrap();
-        gs.set_node_property(id, "b", "2").unwrap();
-        gs.set_node_property(id, "c", "3").unwrap();
-
-        assert!(gs.delete_node_property(id, "b").unwrap());
-
-        let mut buf = [0u8; 256];
-        let len = gs.get_node_property(id, "a", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"1");
-
-        let len = gs.get_node_property(id, "c", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"3");
-
-        assert!(gs.get_node_property(id, "b", &mut buf).unwrap().is_none());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 20 — delete an edge property, subsequent get returns None
-    #[test]
-    fn test_delete_edge_property() {
-        let path = tmp_path("test_gs_delete_edge_prop.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        gs.set_edge_property(eid, "since", "2024").unwrap();
-
-        assert!(gs.delete_edge_property(eid, "since").unwrap());
-
-        let mut buf = [0u8; 256];
-        assert!(gs.get_edge_property(eid, "since", &mut buf).unwrap().is_none());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 21 — deleted slot is reused on next insert
-    #[test]
-    fn test_deleted_slot_reuse() {
-        let path = tmp_path("test_gs_slot_reuse.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-        gs.delete_node_property(id, "name").unwrap();
-        gs.set_node_property(id, "name", "Bob").unwrap();
-
-        let mut buf = [0u8; 256];
-        let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
-        assert_eq!(&buf[..len as usize], b"Bob");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 22 — deleting a node also frees its property chain
-    #[test]
-    fn test_delete_node_frees_properties() {
-        let path = tmp_path("test_gs_delete_node_props.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-        gs.set_node_property(id, "age", "30").unwrap();
-
-        gs.delete_node(id).unwrap();
-
-        assert!(gs.get_node(id).is_err());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 23 — deleting an edge also frees its property chain
-    #[test]
-    fn test_delete_edge_frees_properties() {
-        let path = tmp_path("test_gs_delete_edge_props.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        gs.set_edge_property(eid, "since", "2024").unwrap();
-        gs.set_edge_property(eid, "weight", "heavy").unwrap();
-
-        gs.delete_edge(eid).unwrap();
-
-        assert!(gs.get_edge(eid).is_err());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 24 — cascade delete also frees properties on incident edges
-    #[test]
-    fn test_delete_node_cascade_frees_edge_properties() {
-        let path = tmp_path("test_gs_cascade_edge_props.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-
-        let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        gs.set_edge_property(eid, "key", "value").unwrap();
-
-        gs.delete_node(a).unwrap();
-
-        assert!(gs.get_edge(eid).is_err());
-        assert!(gs.get_node(b).is_ok());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 25 — update node label
-    #[test]
-    fn test_update_node() {
-        let path = tmp_path("test_gs_update_node.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-
-        let mut node = gs.get_node(id).unwrap();
-        node.label = "Company".to_string();
-        gs.update_node(&node).unwrap();
-
-        assert_eq!(gs.get_node(id).unwrap().label, "Company");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 26 — update edge label and weight
-    #[test]
-    fn test_update_edge() {
-        let path = tmp_path("test_gs_update_edge.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let eid = gs.insert_edge(a, b, "KNOWS", 1.0).unwrap();
-
-        let mut edge = gs.get_edge(eid).unwrap();
-        edge.label  = "LIKES".to_string();
-        edge.weight = 5.0;
-        gs.update_edge(&edge).unwrap();
-
-        let updated = gs.get_edge(eid).unwrap();
-        assert_eq!(updated.label,  "LIKES");
-        assert_eq!(updated.weight, 5.0);
-        assert_eq!(updated.src,    a);
-        assert_eq!(updated.dst,    b);
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 27 — update survives close and reopen
-    #[test]
-    fn test_update_persistence() {
-        let path = tmp_path("test_gs_update_persist.nxra");
-        cleanup(&path);
-
-        let (nid, eid) = {
-            let mut gs = GraphStore::create(&path).unwrap();
-            let a   = gs.insert_node("Person").unwrap();
-            let b   = gs.insert_node("City").unwrap();
-            let eid = gs.insert_edge(a, b, "LIVES_IN", 1.0).unwrap();
-
-            let mut node = gs.get_node(a).unwrap();
-            node.label = "Developer".to_string();
-            gs.update_node(&node).unwrap();
-
-            let mut edge = gs.get_edge(eid).unwrap();
-            edge.label  = "WORKS_IN".to_string();
-            edge.weight = 9.0;
-            gs.update_edge(&edge).unwrap();
-
-            gs.close().unwrap();
-            (a, eid)
-        };
-
-        {
-            let mut gs = GraphStore::open(&path).unwrap();
-            assert_eq!(gs.get_node(nid).unwrap().label,  "Developer");
-            assert_eq!(gs.get_edge(eid).unwrap().label,  "WORKS_IN");
-            assert_eq!(gs.get_edge(eid).unwrap().weight, 9.0);
-        }
-
-        cleanup(&path);
-    }
-
-    // Test 28 — scan all nodes visits every inserted node
-    #[test]
-    fn test_scan_all_nodes() {
-        let path = tmp_path("test_gs_scan_nodes.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("Person").unwrap();
-        let b = gs.insert_node("City").unwrap();
-        let c = gs.insert_node("Company").unwrap();
-
-        let mut cursor = gs.all_nodes_cursor().unwrap();
-        let mut ids = Vec::new();
-        while let Some(node) = gs.next_node(&mut cursor).unwrap() {
-            ids.push(node.id);
-        }
-
-        assert_eq!(ids.len(), 3);
-        assert!(ids.contains(&a));
-        assert!(ids.contains(&b));
-        assert!(ids.contains(&c));
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 29 — scan all edges visits every inserted edge
-    #[test]
-    fn test_scan_all_edges() {
-        let path = tmp_path("test_gs_scan_edges.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let c = gs.insert_node("C").unwrap();
-
-        let e1 = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        let e2 = gs.insert_edge(b, c, "REL", 2.0).unwrap();
-        let e3 = gs.insert_edge(a, c, "REL", 3.0).unwrap();
-
-        let mut cursor = gs.all_edges_cursor().unwrap();
-        let mut ids = Vec::new();
-        while let Some(edge) = gs.next_edge(&mut cursor).unwrap() {
-            ids.push(edge.id);
-        }
-
-        assert_eq!(ids.len(), 3);
-        assert!(ids.contains(&e1));
-        assert!(ids.contains(&e2));
-        assert!(ids.contains(&e3));
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 30 — scan skips deleted nodes
-    #[test]
-    fn test_scan_skips_deleted_nodes() {
-        let path = tmp_path("test_gs_scan_skip_deleted.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("A").unwrap();
-        let b = gs.insert_node("B").unwrap();
-        let c = gs.insert_node("C").unwrap();
-        gs.delete_node(b).unwrap();
-
-        let mut cursor = gs.all_nodes_cursor().unwrap();
-        let mut ids = Vec::new();
-        while let Some(node) = gs.next_node(&mut cursor).unwrap() {
-            ids.push(node.id);
-        }
-
-        assert_eq!(ids.len(), 2);
-        assert!(ids.contains(&a));
-        assert!(ids.contains(&c));
-        assert!(!ids.contains(&b));
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 31 — scan on empty store returns nothing
-    #[test]
-    fn test_scan_empty_store() {
-        let path = tmp_path("test_gs_scan_empty.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-
-        let mut cursor = gs.all_nodes_cursor().unwrap();
-        assert!(gs.next_node(&mut cursor).unwrap().is_none());
-
-        let mut cursor = gs.all_edges_cursor().unwrap();
-        assert!(gs.next_edge(&mut cursor).unwrap().is_none());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 32 — iterate all node properties
-    #[test]
-    fn test_iter_node_properties() {
-        let path = tmp_path("test_gs_iter_node_props.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-        gs.set_node_property(id, "age",  "30").unwrap();
-        gs.set_node_property(id, "city", "London").unwrap();
-
-        let mut cursor = gs.node_properties_cursor(id).unwrap();
-        let mut props = std::collections::HashMap::new();
-        while let Some(p) = gs.next_property(&mut cursor).unwrap() {
-            props.insert(p.key, p.value);
-        }
-
-        assert_eq!(props.len(), 3);
-        assert_eq!(props["name"], "Alice");
-        assert_eq!(props["age"],  "30");
-        assert_eq!(props["city"], "London");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 33 — iterate all edge properties
-    #[test]
-    fn test_iter_edge_properties() {
-        let path = tmp_path("test_gs_iter_edge_props.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a   = gs.insert_node("A").unwrap();
-        let b   = gs.insert_node("B").unwrap();
-        let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
-        gs.set_edge_property(eid, "since",  "2020").unwrap();
-        gs.set_edge_property(eid, "weight", "heavy").unwrap();
-
-        let mut cursor = gs.edge_properties_cursor(eid).unwrap();
-        let mut props = std::collections::HashMap::new();
-        while let Some(p) = gs.next_property(&mut cursor).unwrap() {
-            props.insert(p.key, p.value);
-        }
-
-        assert_eq!(props.len(), 2);
-        assert_eq!(props["since"],  "2020");
-        assert_eq!(props["weight"], "heavy");
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 34 — cursor on node with no properties is immediately done
-    #[test]
-    fn test_iter_empty_properties() {
-        let path = tmp_path("test_gs_iter_empty_props.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-
-        let mut cursor = gs.node_properties_cursor(id).unwrap();
-        assert!(gs.next_property(&mut cursor).unwrap().is_none());
-
-        gs.close().unwrap();
-        cleanup(&path);
-    }
-
-    // Test 35 — deleted property does not appear in iteration
-    #[test]
-    fn test_iter_skips_deleted_property() {
-        let path = tmp_path("test_gs_iter_skip_deleted.nxra");
-        cleanup(&path);
-
-        let mut gs = GraphStore::create(&path).unwrap();
-        let id = gs.insert_node("Person").unwrap();
-        gs.set_node_property(id, "name", "Alice").unwrap();
-        gs.set_node_property(id, "age",  "30").unwrap();
-        gs.delete_node_property(id, "age").unwrap();
-
-        let mut cursor = gs.node_properties_cursor(id).unwrap();
-        let mut props = std::collections::HashMap::new();
-        while let Some(p) = gs.next_property(&mut cursor).unwrap() {
-            props.insert(p.key, p.value);
-        }
-
-        assert_eq!(props.len(), 1);
-        assert_eq!(props["name"], "Alice");
-        assert!(!props.contains_key("age"));
-
-        gs.close().unwrap();
-        cleanup(&path);
+        run(move || {
+            let (node_id, edge_id) = {
+                let mut gs = GraphStore::create(&path).unwrap();
+                let a = gs.insert_node("Person").unwrap();
+                let b = gs.insert_node("City").unwrap();
+                let eid = gs.insert_edge(a, b, "LIVES_IN", 42.0).unwrap();
+                gs.close().unwrap();
+                (a, eid)
+            };
+            {
+                let mut gs = GraphStore::open(&path).unwrap();
+                let node = gs.get_node(node_id).unwrap();
+                let edge = gs.get_edge(edge_id).unwrap();
+                assert_eq!(node.label, "Person");
+                assert_eq!(edge.label, "LIVES_IN");
+                assert_eq!(edge.weight, 42.0);
+            }
+            cleanup(&path);
+        });
     }
 
     // Test 8 — multiple node labels are stored independently
@@ -782,17 +173,566 @@ mod tests {
     fn test_multiple_node_labels() {
         let path = tmp_path("test_gs_multi_labels.nxra");
         cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("Person").unwrap();
+            let b = gs.insert_node("City").unwrap();
+            let c = gs.insert_node("Company").unwrap();
+            assert_eq!(gs.get_node(a).unwrap().label, "Person");
+            assert_eq!(gs.get_node(b).unwrap().label, "City");
+            assert_eq!(gs.get_node(c).unwrap().label, "Company");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
 
-        let mut gs = GraphStore::create(&path).unwrap();
-        let a = gs.insert_node("Person").unwrap();
-        let b = gs.insert_node("City").unwrap();
-        let c = gs.insert_node("Company").unwrap();
-
-        assert_eq!(gs.get_node(a).unwrap().label, "Person");
-        assert_eq!(gs.get_node(b).unwrap().label, "City");
-        assert_eq!(gs.get_node(c).unwrap().label, "Company");
-
-        gs.close().unwrap();
+    // Test 9 — set and get a node property
+    #[test]
+    fn test_set_and_get_node_property() {
+        let path = tmp_path("test_gs_node_prop.nxra");
         cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            let mut buf = [0u8; 256];
+            let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"Alice");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 10 — updating an existing node property replaces the value
+    #[test]
+    fn test_update_node_property() {
+        let path = tmp_path("test_gs_node_prop_update.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            gs.set_node_property(id, "name", "Bob").unwrap();
+            let mut buf = [0u8; 256];
+            let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"Bob");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 11 — multiple properties on the same node
+    #[test]
+    fn test_multiple_node_properties() {
+        let path = tmp_path("test_gs_multi_node_props.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            gs.set_node_property(id, "age", "30").unwrap();
+            let mut buf = [0u8; 256];
+            let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"Alice");
+            let len = gs.get_node_property(id, "age", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"30");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 12 — get a nonexistent property returns None
+    #[test]
+    fn test_get_missing_property() {
+        let path = tmp_path("test_gs_missing_prop.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            let mut buf = [0u8; 256];
+            assert!(gs.get_node_property(id, "name", &mut buf).unwrap().is_none());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 13 — set and get an edge property
+    #[test]
+    fn test_set_and_get_edge_property() {
+        let path = tmp_path("test_gs_edge_prop.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            gs.set_edge_property(eid, "since", "2024").unwrap();
+            let mut buf = [0u8; 256];
+            let len = gs.get_edge_property(eid, "since", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"2024");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 14 — node properties survive close and reopen
+    #[test]
+    fn test_node_property_persistence() {
+        let path = tmp_path("test_gs_prop_persist.nxra");
+        cleanup(&path);
+        run(move || {
+            let node_id = {
+                let mut gs = GraphStore::create(&path).unwrap();
+                let id = gs.insert_node("Person").unwrap();
+                gs.set_node_property(id, "name", "Alice").unwrap();
+                gs.close().unwrap();
+                id
+            };
+            {
+                let mut gs = GraphStore::open(&path).unwrap();
+                let mut buf = [0u8; 256];
+                let len = gs.get_node_property(node_id, "name", &mut buf).unwrap().unwrap();
+                assert_eq!(&buf[..len as usize], b"Alice");
+            }
+            cleanup(&path);
+        });
+    }
+
+    // Test 15 — deleting a node also deletes its incident edges
+    #[test]
+    fn test_delete_node_cascades() {
+        let path = tmp_path("test_gs_cascade.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let c = gs.insert_node("C").unwrap();
+            let e1 = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            let e2 = gs.insert_edge(c, a, "REL", 2.0).unwrap();
+            gs.delete_node(a).unwrap();
+            assert!(gs.get_edge(e1).is_err());
+            assert!(gs.get_edge(e2).is_err());
+            assert!(gs.get_node(b).is_ok());
+            assert!(gs.get_node(c).is_ok());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 16 — self-loop is cleaned up on node delete
+    #[test]
+    fn test_delete_node_self_loop() {
+        let path = tmp_path("test_gs_self_loop_cascade.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let eid = gs.insert_edge(a, a, "SELF", 0.0).unwrap();
+            gs.delete_node(a).unwrap();
+            assert!(gs.get_edge(eid).is_err());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 17 — delete a node property, subsequent get returns None
+    #[test]
+    fn test_delete_node_property() {
+        let path = tmp_path("test_gs_delete_node_prop.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            assert!(gs.delete_node_property(id, "name").unwrap());
+            let mut buf = [0u8; 256];
+            assert!(gs.get_node_property(id, "name", &mut buf).unwrap().is_none());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 18 — delete a nonexistent node property returns false
+    #[test]
+    fn test_delete_nonexistent_node_property() {
+        let path = tmp_path("test_gs_delete_missing_prop.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            assert!(!gs.delete_node_property(id, "name").unwrap());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 19 — delete middle property, head and tail remain intact
+    #[test]
+    fn test_delete_middle_node_property() {
+        let path = tmp_path("test_gs_delete_mid_prop.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "a", "1").unwrap();
+            gs.set_node_property(id, "b", "2").unwrap();
+            gs.set_node_property(id, "c", "3").unwrap();
+            assert!(gs.delete_node_property(id, "b").unwrap());
+            let mut buf = [0u8; 256];
+            let len = gs.get_node_property(id, "a", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"1");
+            let len = gs.get_node_property(id, "c", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"3");
+            assert!(gs.get_node_property(id, "b", &mut buf).unwrap().is_none());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 20 — delete an edge property, subsequent get returns None
+    #[test]
+    fn test_delete_edge_property() {
+        let path = tmp_path("test_gs_delete_edge_prop.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            gs.set_edge_property(eid, "since", "2024").unwrap();
+            assert!(gs.delete_edge_property(eid, "since").unwrap());
+            let mut buf = [0u8; 256];
+            assert!(gs.get_edge_property(eid, "since", &mut buf).unwrap().is_none());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 21 — deleted slot is reused on next insert
+    #[test]
+    fn test_deleted_slot_reuse() {
+        let path = tmp_path("test_gs_slot_reuse.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            gs.delete_node_property(id, "name").unwrap();
+            gs.set_node_property(id, "name", "Bob").unwrap();
+            let mut buf = [0u8; 256];
+            let len = gs.get_node_property(id, "name", &mut buf).unwrap().unwrap();
+            assert_eq!(&buf[..len as usize], b"Bob");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 22 — deleting a node also frees its property chain
+    #[test]
+    fn test_delete_node_frees_properties() {
+        let path = tmp_path("test_gs_delete_node_props.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            gs.set_node_property(id, "age", "30").unwrap();
+            gs.delete_node(id).unwrap();
+            assert!(gs.get_node(id).is_err());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 23 — deleting an edge also frees its property chain
+    #[test]
+    fn test_delete_edge_frees_properties() {
+        let path = tmp_path("test_gs_delete_edge_props.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            gs.set_edge_property(eid, "since", "2024").unwrap();
+            gs.set_edge_property(eid, "weight", "heavy").unwrap();
+            gs.delete_edge(eid).unwrap();
+            assert!(gs.get_edge(eid).is_err());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 24 — cascade delete also frees properties on incident edges
+    #[test]
+    fn test_delete_node_cascade_frees_edge_properties() {
+        let path = tmp_path("test_gs_cascade_edge_props.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            gs.set_edge_property(eid, "key", "value").unwrap();
+            gs.delete_node(a).unwrap();
+            assert!(gs.get_edge(eid).is_err());
+            assert!(gs.get_node(b).is_ok());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 25 — update node label
+    #[test]
+    fn test_update_node() {
+        let path = tmp_path("test_gs_update_node.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            let mut node = gs.get_node(id).unwrap();
+            node.label = "Company".to_string();
+            gs.update_node(&node).unwrap();
+            assert_eq!(gs.get_node(id).unwrap().label, "Company");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 26 — update edge label and weight
+    #[test]
+    fn test_update_edge() {
+        let path = tmp_path("test_gs_update_edge.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let eid = gs.insert_edge(a, b, "KNOWS", 1.0).unwrap();
+            let mut edge = gs.get_edge(eid).unwrap();
+            edge.label  = "LIKES".to_string();
+            edge.weight = 5.0;
+            gs.update_edge(&edge).unwrap();
+            let updated = gs.get_edge(eid).unwrap();
+            assert_eq!(updated.label,  "LIKES");
+            assert_eq!(updated.weight, 5.0);
+            assert_eq!(updated.src,    a);
+            assert_eq!(updated.dst,    b);
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 27 — update survives close and reopen
+    #[test]
+    fn test_update_persistence() {
+        let path = tmp_path("test_gs_update_persist.nxra");
+        cleanup(&path);
+        run(move || {
+            let (nid, eid) = {
+                let mut gs = GraphStore::create(&path).unwrap();
+                let a   = gs.insert_node("Person").unwrap();
+                let b   = gs.insert_node("City").unwrap();
+                let eid = gs.insert_edge(a, b, "LIVES_IN", 1.0).unwrap();
+                let mut node = gs.get_node(a).unwrap();
+                node.label = "Developer".to_string();
+                gs.update_node(&node).unwrap();
+                let mut edge = gs.get_edge(eid).unwrap();
+                edge.label  = "WORKS_IN".to_string();
+                edge.weight = 9.0;
+                gs.update_edge(&edge).unwrap();
+                gs.close().unwrap();
+                (a, eid)
+            };
+            {
+                let mut gs = GraphStore::open(&path).unwrap();
+                assert_eq!(gs.get_node(nid).unwrap().label,  "Developer");
+                assert_eq!(gs.get_edge(eid).unwrap().label,  "WORKS_IN");
+                assert_eq!(gs.get_edge(eid).unwrap().weight, 9.0);
+            }
+            cleanup(&path);
+        });
+    }
+
+    // Test 28 — scan all nodes visits every inserted node
+    #[test]
+    fn test_scan_all_nodes() {
+        let path = tmp_path("test_gs_scan_nodes.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("Person").unwrap();
+            let b = gs.insert_node("City").unwrap();
+            let c = gs.insert_node("Company").unwrap();
+            let mut cursor = gs.all_nodes_cursor().unwrap();
+            let mut ids = Vec::new();
+            while let Some(node) = gs.next_node(&mut cursor).unwrap() {
+                ids.push(node.id);
+            }
+            assert_eq!(ids.len(), 3);
+            assert!(ids.contains(&a));
+            assert!(ids.contains(&b));
+            assert!(ids.contains(&c));
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 29 — scan all edges visits every inserted edge
+    #[test]
+    fn test_scan_all_edges() {
+        let path = tmp_path("test_gs_scan_edges.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let c = gs.insert_node("C").unwrap();
+            let e1 = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            let e2 = gs.insert_edge(b, c, "REL", 2.0).unwrap();
+            let e3 = gs.insert_edge(a, c, "REL", 3.0).unwrap();
+            let mut cursor = gs.all_edges_cursor().unwrap();
+            let mut ids = Vec::new();
+            while let Some(edge) = gs.next_edge(&mut cursor).unwrap() {
+                ids.push(edge.id);
+            }
+            assert_eq!(ids.len(), 3);
+            assert!(ids.contains(&e1));
+            assert!(ids.contains(&e2));
+            assert!(ids.contains(&e3));
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 30 — scan skips deleted nodes
+    #[test]
+    fn test_scan_skips_deleted_nodes() {
+        let path = tmp_path("test_gs_scan_skip_deleted.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("A").unwrap();
+            let b = gs.insert_node("B").unwrap();
+            let c = gs.insert_node("C").unwrap();
+            gs.delete_node(b).unwrap();
+            let mut cursor = gs.all_nodes_cursor().unwrap();
+            let mut ids = Vec::new();
+            while let Some(node) = gs.next_node(&mut cursor).unwrap() {
+                ids.push(node.id);
+            }
+            assert_eq!(ids.len(), 2);
+            assert!(ids.contains(&a));
+            assert!(ids.contains(&c));
+            assert!(!ids.contains(&b));
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 31 — scan on empty store returns nothing
+    #[test]
+    fn test_scan_empty_store() {
+        let path = tmp_path("test_gs_scan_empty.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let mut cursor = gs.all_nodes_cursor().unwrap();
+            assert!(gs.next_node(&mut cursor).unwrap().is_none());
+            let mut cursor = gs.all_edges_cursor().unwrap();
+            assert!(gs.next_edge(&mut cursor).unwrap().is_none());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 32 — iterate all node properties
+    #[test]
+    fn test_iter_node_properties() {
+        let path = tmp_path("test_gs_iter_node_props.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            gs.set_node_property(id, "age",  "30").unwrap();
+            gs.set_node_property(id, "city", "London").unwrap();
+            let mut cursor = gs.node_properties_cursor(id).unwrap();
+            let mut props = std::collections::HashMap::new();
+            while let Some(p) = gs.next_property(&mut cursor).unwrap() {
+                props.insert(p.key, p.value);
+            }
+            assert_eq!(props.len(), 3);
+            assert_eq!(props["name"], "Alice");
+            assert_eq!(props["age"],  "30");
+            assert_eq!(props["city"], "London");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 33 — iterate all edge properties
+    #[test]
+    fn test_iter_edge_properties() {
+        let path = tmp_path("test_gs_iter_edge_props.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a   = gs.insert_node("A").unwrap();
+            let b   = gs.insert_node("B").unwrap();
+            let eid = gs.insert_edge(a, b, "REL", 1.0).unwrap();
+            gs.set_edge_property(eid, "since",  "2020").unwrap();
+            gs.set_edge_property(eid, "weight", "heavy").unwrap();
+            let mut cursor = gs.edge_properties_cursor(eid).unwrap();
+            let mut props = std::collections::HashMap::new();
+            while let Some(p) = gs.next_property(&mut cursor).unwrap() {
+                props.insert(p.key, p.value);
+            }
+            assert_eq!(props.len(), 2);
+            assert_eq!(props["since"],  "2020");
+            assert_eq!(props["weight"], "heavy");
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 34 — cursor on node with no properties is immediately done
+    #[test]
+    fn test_iter_empty_properties() {
+        let path = tmp_path("test_gs_iter_empty_props.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            let mut cursor = gs.node_properties_cursor(id).unwrap();
+            assert!(gs.next_property(&mut cursor).unwrap().is_none());
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 35 — deleted property does not appear in iteration
+    #[test]
+    fn test_iter_skips_deleted_property() {
+        let path = tmp_path("test_gs_iter_skip_deleted.nxra");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let id = gs.insert_node("Person").unwrap();
+            gs.set_node_property(id, "name", "Alice").unwrap();
+            gs.set_node_property(id, "age",  "30").unwrap();
+            gs.delete_node_property(id, "age").unwrap();
+            let mut cursor = gs.node_properties_cursor(id).unwrap();
+            let mut props = std::collections::HashMap::new();
+            while let Some(p) = gs.next_property(&mut cursor).unwrap() {
+                props.insert(p.key, p.value);
+            }
+            assert_eq!(props.len(), 1);
+            assert_eq!(props["name"], "Alice");
+            assert!(!props.contains_key("age"));
+            gs.close().unwrap();
+            cleanup(&path);
+        });
     }
 }

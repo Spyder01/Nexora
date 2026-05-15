@@ -3,7 +3,12 @@
     "allow": [
       "Bash(cargo build *)",
       "Bash(cargo test *)",
-      "Bash(cargo check *)"
+      "Bash(cargo check *)",
+      "Bash(cargo run *)",
+      "Bash(cargo bench *)",
+      "Bash(wait)",
+      "Bash(pkill -f \"graph_bench\")",
+      "Bash(chmod +x *)"
     ]
   }
 }

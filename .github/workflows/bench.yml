@@ -1,0 +1,34 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install gnuplot
+        run: sudo apt-get install -y gnuplot
+
+      - name: Run benchmarks
+        env:
+          NEXORA_BENCH_MAX: "100000"
+        run: cargo bench --bench graph_bench
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: criterion-report-${{ github.sha }}
+          path: target/criterion/
+          retention-days: 90

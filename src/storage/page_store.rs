@@ -8,13 +8,15 @@ const CHECKSUM_OFFSET: usize = 24;
 const CHECKSUM_LEN:    usize = 4;
 
 pub trait PageStore {
-    fn read_page(&self, page_id: PageId, buf: &mut [u8; PAGE_SIZE], verify_checksum: bool) -> Result<(), NexoraStorageError>;
-    fn write_page(&self, page_id: PageId, buf: &[u8; PAGE_SIZE], stamp_checksum: bool) -> Result<(), NexoraStorageError>;
+    fn read_page(&mut self, page_id: PageId, buf: &mut [u8; PAGE_SIZE], verify_checksum: bool) -> Result<(), NexoraStorageError>;
+    fn write_page(&mut self, page_id: PageId, buf: &[u8; PAGE_SIZE], stamp_checksum: bool) -> Result<(), NexoraStorageError>;
 
     // Reads only the page header — no checksum verification, no full page I/O.
     // Safe to call only when the caller does not need data integrity guarantees
     // (e.g. traversing the free list to read next_page_id).
-    fn read_page_header_unchecked(&self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError>;
+    fn read_page_header_unchecked(&mut self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError>;
+
+    fn close(&mut self) -> Result<(), NexoraStorageError> { Ok(()) }
 
     fn get_checksum(buf: &[u8; PAGE_SIZE]) -> u32 {
         u32::from_le_bytes(buf[CHECKSUM_OFFSET..CHECKSUM_OFFSET + CHECKSUM_LEN].try_into().expect("slice is always CHECKSUM_LEN bytes"))

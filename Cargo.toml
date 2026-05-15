@@ -7,3 +7,10 @@ edition = "2024"
 zerocopy = { version = "0.8", features = ["derive"] }
 thiserror = "2"
 crc32fast = "1"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "graph_bench"
+harness = false
