@@ -37,8 +37,7 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
         let (edge_page_id, slot) = self.insert_into_page(edge)?;
         let edge_ptr = PackedPtr::new(edge_page_id.as_u64(), slot as u8);
 
-        GraphNodeStore::new(self.storage).update_out_edge(src_node_id, edge_ptr)?;
-        GraphNodeStore::new(self.storage).update_in_edge(dst_node_id, edge_ptr)?;
+        GraphNodeStore::new(self.storage).update_edge_ptrs(src_node_id, dst_node_id, edge_ptr, edge_ptr)?;
 
         self.storage.footer.next_edge_id = U64::new(edge_id + 1);
         self.storage.footer.edge_count   = U64::new(self.storage.footer.edge_count.get() + 1);
@@ -263,22 +262,18 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
     }
 
     fn insert_into_page(&mut self, edge: GraphEdgeRecord) -> Result<(PageId, usize), NexoraGraphEdgeError> {
-        let mut page_id_val = self.storage.footer.first_edge_page.get();
-        while page_id_val != SENTINEL_PAGE_ID {
-            let page_id = PageId(page_id_val);
+        let last = self.storage.footer.last_edge_page.get();
+        if last != SENTINEL_PAGE_ID {
+            let page_id = PageId(last);
             let mut buf = [0u8; PAGE_SIZE];
             self.storage.store.read_page(page_id, &mut buf, true)?;
             let mut page = *GraphEdgePage::ref_from_bytes(&buf[..])
-                .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
-
+                .map_err(|_| NexoraStorageError::CorruptPage(last))?;
             if let Ok(slot) = page.insert_edge(edge) {
                 self.storage.store.write_page(page_id, page.as_bytes().try_into().expect("GraphEdgePage is PAGE_SIZE"), true)?;
                 return Ok((page_id, slot));
             }
-
-            page_id_val = page.page_header.next_page_id.get();
         }
-
         self.insert_into_new_page(edge)
     }
 
@@ -293,6 +288,7 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
 
         self.storage.store.write_page(new_page_id, page.as_bytes().try_into().expect("GraphEdgePage is PAGE_SIZE"), true)?;
         self.storage.footer.first_edge_page = U64::new(new_page_id.as_u64());
+        self.storage.footer.last_edge_page  = U64::new(new_page_id.as_u64());
         self.storage.mark_footer_dirty();
 
         Ok((new_page_id, slot))

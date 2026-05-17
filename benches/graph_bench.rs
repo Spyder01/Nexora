@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use nexora::graph::graphstore::graphstore::GraphStore;
+use nexora::graph::node::constants::MAX_RECORD_COUNT;
 
 const LARGE_STACK: usize = 16 * 1024 * 1024;
 
@@ -301,14 +302,147 @@ fn bench_scan_all_nodes(c: &mut Criterion) {
     group.finish();
 }
 
+// --- insert_edge_cross_page: src and dst live on different node pages ---
+// src=0 (page 0), dst=MAX_RECORD_COUNT (page 1). Exercises the else branch
+// of update_edge_ptrs that reads and writes two separate node pages.
+fn bench_insert_edge_cross_page(c: &mut Criterion) {
+    let path = tmp_path("bench_insert_edge_cross_page.nxra");
+
+    c.bench_function("insert_edge_cross_page", |b| {
+        b.iter_custom(|iters| {
+            let path = path.clone();
+            run_on_large_stack(move || {
+                cleanup(&path);
+                let mut gs = GraphStore::create(&path).unwrap();
+                // Populate enough nodes so src (0) and dst (MAX_RECORD_COUNT)
+                // are guaranteed to land on different node pages.
+                for _ in 0..=MAX_RECORD_COUNT {
+                    gs.insert_node("Person").unwrap();
+                }
+                let src: u64 = 0;
+                let dst: u64 = MAX_RECORD_COUNT as u64;
+
+                let start = Instant::now();
+                for _ in 0..iters {
+                    black_box(gs.insert_edge(src, dst, "KNOWS", 1.0).unwrap());
+                }
+                let elapsed = start.elapsed();
+
+                gs.close().unwrap();
+                cleanup(&path);
+                elapsed
+            })
+        });
+    });
+}
+
+// --- bulk_insert_edges: insert N edges across N pre-existing nodes ---
+// Uses LCG-spread src/dst pairs offset by n/2, forcing cross-page node
+// writes at scale. Each iter_custom call rebuilds a fresh populated store
+// outside the timing window so the file is always present on re-entry.
+fn bench_bulk_insert_edges(c: &mut Criterion) {
+    let mut group = c.benchmark_group("bulk_insert_edges");
+
+    for n in bench_sizes() {
+        let path = tmp_path(&format!("bench_bulk_edges_{}.nxra", n));
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    // Rebuild outside timing — criterion calls iter_custom
+                    // multiple times (warmup + samples), so we can't rely on
+                    // a file pre-populated before bench_with_input.
+                    cleanup(&path);
+                    {
+                        let mut gs = GraphStore::create(&path).unwrap();
+                        for _ in 0..n {
+                            gs.insert_node("Person").unwrap();
+                        }
+                        gs.close().unwrap();
+                    }
+
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let mut rng: u64 = 0xdead_beef_cafe_1234;
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        let src = lcg_next(&mut rng) % n;
+                        let dst = (src + n / 2) % n;
+                        black_box(gs.insert_edge(src, dst, "KNOWS", 1.0).unwrap());
+                    }
+                    let elapsed = start.elapsed();
+                    gs.close().unwrap();
+                    cleanup(&path);
+                    elapsed
+                })
+            });
+        });
+    }
+
+    group.finish();
+}
+
+// --- incoming_traversal: walk all incoming edges of a hub node ---
+// Mirrors bench_outgoing_traversal: spokes connect *to* the hub so the
+// hub accumulates incoming edges, exercising the first_in_edge chain.
+fn bench_incoming_traversal(c: &mut Criterion) {
+    let mut group = c.benchmark_group("incoming_traversal");
+
+    for &degree in &[10u64, 100, 500] {
+        let path = tmp_path(&format!("bench_incoming_{}.nxra", degree));
+        cleanup(&path);
+
+        run_on_large_stack({
+            let path = path.clone();
+            move || {
+                let mut gs = GraphStore::create(&path).unwrap();
+                let hub = gs.insert_node("Hub").unwrap();
+                for _ in 0..degree {
+                    let src = gs.insert_node("Spoke").unwrap();
+                    gs.insert_edge(src, hub, "KNOWS", 1.0).unwrap();
+                }
+                gs.close().unwrap();
+            }
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter(degree), &degree, |b, _| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        let mut cursor = gs.incoming_cursor(0).unwrap();
+                        loop {
+                            match black_box(gs.next_incoming(&mut cursor).unwrap()) {
+                                None => break,
+                                Some(_) => {}
+                            }
+                        }
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_insert_node,
     bench_get_node_sequential,
     bench_get_node_random,
     bench_insert_edge,
+    bench_insert_edge_cross_page,
     bench_outgoing_traversal,
+    bench_incoming_traversal,
     bench_bulk_insert,
+    bench_bulk_insert_edges,
     bench_scan_all_nodes,
 );
 criterion_main!(benches);

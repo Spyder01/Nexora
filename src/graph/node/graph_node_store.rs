@@ -174,6 +174,53 @@ impl<'a, S: PageStore> GraphNodeStore<'a, S> {
         Ok(())
     }
 
+    pub fn update_edge_ptrs(
+        &mut self,
+        src_id:  u64,
+        dst_id:  u64,
+        out_ptr: PackedPtr,
+        in_ptr:  PackedPtr,
+    ) -> Result<(), NexoraGraphNodeError> {
+        let src_page_id = self.node_page_id(src_id)?;
+        let dst_page_id = self.node_page_id(dst_id)?;
+        let src_slot    = (src_id % MAX_RECORD_COUNT as u64) as usize;
+        let dst_slot    = (dst_id % MAX_RECORD_COUNT as u64) as usize;
+
+        if src_page_id == dst_page_id {
+            let mut buf = [0u8; PAGE_SIZE];
+            self.storage.store.read_page(src_page_id, &mut buf, true)?;
+            let mut page = *GraphNodePage::ref_from_bytes(&buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(src_page_id.as_u64()))?;
+            if !page.graph_node_records[src_slot].is_active() || !page.graph_node_records[dst_slot].is_active() {
+                return Err(NexoraGraphNodeError::NodeNotFound);
+            }
+            page.graph_node_records[src_slot].first_out_edge = out_ptr;
+            page.graph_node_records[dst_slot].first_in_edge  = in_ptr;
+            self.storage.store.write_page(src_page_id, page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
+        } else {
+            let mut src_buf = [0u8; PAGE_SIZE];
+            self.storage.store.read_page(src_page_id, &mut src_buf, true)?;
+            let mut src_page = *GraphNodePage::ref_from_bytes(&src_buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(src_page_id.as_u64()))?;
+            if !src_page.graph_node_records[src_slot].is_active() {
+                return Err(NexoraGraphNodeError::NodeNotFound);
+            }
+            src_page.graph_node_records[src_slot].first_out_edge = out_ptr;
+            self.storage.store.write_page(src_page_id, src_page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
+
+            let mut dst_buf = [0u8; PAGE_SIZE];
+            self.storage.store.read_page(dst_page_id, &mut dst_buf, true)?;
+            let mut dst_page = *GraphNodePage::ref_from_bytes(&dst_buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(dst_page_id.as_u64()))?;
+            if !dst_page.graph_node_records[dst_slot].is_active() {
+                return Err(NexoraGraphNodeError::NodeNotFound);
+            }
+            dst_page.graph_node_records[dst_slot].first_in_edge = in_ptr;
+            self.storage.store.write_page(dst_page_id, dst_page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
+        }
+        Ok(())
+    }
+
     pub fn delete_node(&mut self, node_id: u64) -> Result<(), NexoraGraphNodeError> {
         if node_id >= self.storage.footer.next_node_id.get() {
             return Err(NexoraGraphNodeError::NodeNotFound);
