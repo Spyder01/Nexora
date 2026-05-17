@@ -98,6 +98,9 @@ _pad:             u8    — 1 byte    (offset 39)
 ## Future Optimization
 - Inline string optimization for GraphPropertyRecord only (not labels). Replace key_ptr/val_ptr PackedPtr (8 bytes each) with 24-byte inline string headers: [len: 4 | buffer: 12 | ptr: 8]. Short strings (≤12 bytes) stored inline with zero page lookups. Long strings store 4-byte prefix inline + PackedPtr to page chain. Labels stay as label_id (u32) — already deduplicated, no benefit from inlining. Benefit: eliminates page lookups for short property keys/values (name, age, weight etc). Cost: PropertyRecord grows from 24 to 56 bytes, records per page drops from ~170 to ~73.
 
+## Heap Allocations
+- `BufferStore::frames` and `page_ids` are `Box<[Frame]>` and `Box<[PageId]>` — heap-allocated via `vec![...].into_boxed_slice()` in `BufferStore::new()`. Necessary because the frame data (8MB at current pool size of `1 << 23`) cannot live in the struct body without causing stack overflows wherever `BufferStore` is held by value inside `StorageManager`. Future: if pool size becomes runtime-configurable, this also enables dynamic sizing at construction time without changing the type signature.
+
 ## Future Cleanup
 - `close()` on `PageStore` trait is a design smell — lifecycle is not an I/O primitive concern. Options: (1) second trait bound `S: PageStore + Closeable`; (2) implement `Drop` on `BufferStore` to flush dirty frames — guarantees flush even if caller forgets `close()`, but `Drop` cannot return `Result` so I/O errors are silently swallowed. Refactor when design hardens.
 

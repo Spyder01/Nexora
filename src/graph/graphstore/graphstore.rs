@@ -599,15 +599,13 @@ impl<S: PageStore> GraphStore<S> {
 impl GraphStore<crate::storage::page_store_disk::RegularPageStore> {
     pub fn create(path: &std::path::Path) -> Result<Self, NexoraGraphStoreError> {
         let store = crate::storage::page_store_disk::RegularPageStore::create(path)?;
-        let buf = BufferStore::new_boxed(store);
-        let storage = StorageManager::from_page_store(*buf)?;
+        let storage = StorageManager::from_page_store(BufferStore::new(store))?;
         Ok(GraphStore::new(storage))
     }
 
     pub fn open(path: &std::path::Path) -> Result<Self, NexoraGraphStoreError> {
         let store = crate::storage::page_store_disk::RegularPageStore::open(path)?;
-        let buf = BufferStore::new_boxed(store);
-        let storage = StorageManager::from_page_store(*buf)?;
+        let storage = StorageManager::from_page_store(BufferStore::new(store))?;
         Ok(GraphStore::new(storage))
     }
 }

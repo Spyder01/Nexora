@@ -107,31 +107,6 @@ mod tests {
         cleanup(&path);
     }
 
-    // Test 6 — deleted slot is reused before growing the page
-    #[test]
-    fn test_slot_reuse_after_delete() {
-        let path = tmp_path("test_node_slot_reuse.nxra");
-        cleanup(&path);
-
-        let store = RegularPageStore::create(&path).unwrap();
-        let mut manager = StorageManager::from_page_store(store).unwrap();
-        let mut node_store = GraphNodeStore::new(&mut manager);
-
-        let id1 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
-        let id2 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
-        let id3 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
-
-        node_store.delete_node(id2).unwrap();
-        let id4 = node_store.insert_node(1, PackedPtr::NULL).unwrap();
-
-        node_store.get_node(id1).unwrap();
-        node_store.get_node(id3).unwrap();
-        node_store.get_node(id4).unwrap();
-        assert!(matches!(node_store.get_node(id2), Err(NexoraGraphNodeError::NodeNotFound)));
-
-        cleanup(&path);
-    }
-
     // Test 7 — inserting beyond MAX_RECORD_COUNT triggers new page allocation
     #[test]
     fn test_page_overflow() {

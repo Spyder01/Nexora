@@ -6,7 +6,7 @@ use zerocopy::byteorder::little_endian::{U32, U64};
 use crate::storage::constants::{PAGE_HEADER_SIZE, PAGE_SIZE, PAGE_SIZE_SHIFT, SENTINEL_PAGE_ID};
 
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub struct PageId(pub u64);
 
 impl PageId {
@@ -27,7 +27,7 @@ pub enum PageType {
   Node     = 2,
   Edge     = 3,
   Overflow = 4,
-  Index    = 5,
+  PageIndex = 5,
   Label    = 6,
   Free     = 7,
   String   = 8,
@@ -44,7 +44,7 @@ impl TryFrom<u8> for PageType {
           2 => Ok(PageType::Node),
           3 => Ok(PageType::Edge),
           4 => Ok(PageType::Overflow),
-          5 => Ok(PageType::Index),
+          5 => Ok(PageType::PageIndex),
           6 => Ok(PageType::Label),
           7 => Ok(PageType::Free),
           8 => Ok(PageType::String),
@@ -115,7 +115,7 @@ pub const INITIAL_HEADER: NexoraHeader = NexoraHeader {
     _pad:           [0u8; PAGE_SIZE - PAGE_HEADER_SIZE - 4 - 4 - 8 - 4],
 };
 
-const NEXORA_FOOTER_PAGE_PADDING: usize = PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8;
+const NEXORA_FOOTER_PAGE_PADDING: usize = PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8;
 
 
 #[derive(Debug, FromBytes, IntoBytes, Immutable, KnownLayout, Copy, Clone)]
@@ -125,6 +125,7 @@ pub struct NexoraFooter {
 
     pub node_count:                  U64,
     pub first_node_page:             U64,
+    pub last_node_page:              U64,
     pub next_node_id:                U64,
 
     pub edge_count:                  U64,
@@ -134,8 +135,8 @@ pub struct NexoraFooter {
     pub overflow_elements_count:     U64,
     pub first_overflow_element_page: U64,
 
-    pub indices_count:               U64,
-    pub first_index_page:            U64,
+    pub page_indices_count:          U64,
+    pub first_page_index_page:       U64,
 
     pub free_pages_count:            U64,
     pub first_free_page:             U64,
@@ -168,14 +169,15 @@ pub const INITIAL_FOOTER: NexoraFooter = NexoraFooter {
     },
     node_count:                  U64::new(0),
     first_node_page:             U64::new(SENTINEL_PAGE_ID),
+    last_node_page:              U64::new(SENTINEL_PAGE_ID),
     next_node_id:                U64::new(0),
     edge_count:                  U64::new(0),
     first_edge_page:             U64::new(SENTINEL_PAGE_ID),
     next_edge_id:                U64::new(0),
     overflow_elements_count:     U64::new(0),
     first_overflow_element_page: U64::new(SENTINEL_PAGE_ID),
-    indices_count:               U64::new(0),
-    first_index_page:            U64::new(SENTINEL_PAGE_ID),
+    page_indices_count:          U64::new(0),
+    first_page_index_page:       U64::new(SENTINEL_PAGE_ID),
     free_pages_count:            U64::new(0),
     first_free_page:             U64::new(SENTINEL_PAGE_ID),
     first_string_page:           U64::new(SENTINEL_PAGE_ID),

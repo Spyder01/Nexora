@@ -8,7 +8,16 @@
       "Bash(cargo bench *)",
       "Bash(wait)",
       "Bash(pkill -f \"graph_bench\")",
-      "Bash(chmod +x *)"
+      "Bash(chmod +x *)",
+      "Bash(sed -n '100,130p' /Users/suhanj/.projects/nexora/src/graph/edge/graph_edge_store.rs)",
+      "Bash(sed -n '185,210p' /Users/suhanj/.projects/nexora/src/graph/edge/graph_edge_store.rs)",
+      "Bash(sed -n '230,260p' /Users/suhanj/.projects/nexora/src/graph/edge/graph_edge_store.rs)",
+      "Bash(sed -n '280,300p' /Users/suhanj/.projects/nexora/src/graph/edge/graph_edge_store.rs)",
+      "Bash(./bench.sh 10000 *)",
+      "Bash(./bench.sh 100000 *)",
+      "Bash(gh api *)",
+      "Bash(curl -s https://raw.githubusercontent.com/tursodatabase/turso/main/core/storage/buffer_pool.rs)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use crate::storage::error::NexoraStorageError;
+use crate::graph::node::error::NexoraGraphNodeError;
 
 #[derive(Debug, Error)]
 pub enum NexoraGraphEdgeError {
@@ -15,6 +16,15 @@ pub enum NexoraGraphEdgeError {
 
   #[error("Node referenced by edge does not exist")]
   NodeNotFound,
+}
+
+impl From<NexoraGraphNodeError> for NexoraGraphEdgeError {
+    fn from(e: NexoraGraphNodeError) -> Self {
+        match e {
+            NexoraGraphNodeError::NodeNotFound | NexoraGraphNodeError::NoFreeSlot => NexoraGraphEdgeError::NodeNotFound,
+            NexoraGraphNodeError::Storage(s) => NexoraGraphEdgeError::Storage(s),
+        }
+    }
 }
 
 

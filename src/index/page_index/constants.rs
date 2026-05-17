@@ -1,0 +1,9 @@
+use crate::storage::constants::{PAGE_SIZE, PAGE_HEADER_SIZE};
+
+pub const PAGE_INDEX_HEADER_SIZE: usize = 1 << 1;
+
+pub const NODE_PAGE_INDEX_RECORD_SIZE: usize = 1 << 3;
+
+pub const MAX_NODE_PAGE_INDEX_RECORD_COUNT: usize = (PAGE_SIZE - PAGE_HEADER_SIZE - PAGE_INDEX_HEADER_SIZE)/NODE_PAGE_INDEX_RECORD_SIZE;
+
+

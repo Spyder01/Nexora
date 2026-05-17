@@ -9,7 +9,7 @@ use crate::storage::error::NexoraStorageError;
 
 use crate::graph::edge::page::{GraphEdgePage, GraphEdgeRecord};
 use crate::graph::edge::error::NexoraGraphEdgeError;
-use crate::graph::node::page::GraphNodePage;
+use crate::graph::node::graph_node_store::GraphNodeStore;
 use crate::graph::record::types::{PackedPtr, RecordCursor};
 
 pub struct GraphEdgeStore<'a, S: PageStore> {
@@ -30,45 +30,15 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
     ) -> Result<u64, NexoraGraphEdgeError> {
         let edge_id = self.storage.footer.next_edge_id.get();
 
-        let (src_page_id, src_slot) = self.find_node_location(src_node_id)?;
-        let (dst_page_id, dst_slot) = self.find_node_location(dst_node_id)?;
-
-        let mut src_buf = [0u8; PAGE_SIZE];
-        self.storage.store.read_page(src_page_id, &mut src_buf, true)?;
-        let mut src_page = *GraphNodePage::ref_from_bytes(&src_buf[..])
-            .map_err(|_| NexoraStorageError::CorruptPage(src_page_id.as_u64()))?;
-
-        // Fix 4: keep dst_page alive to avoid re-reading it later
-        let mut dst_buf = [0u8; PAGE_SIZE];
-        let mut dst_page_opt: Option<GraphNodePage> = None;
-
-        let old_first_out = src_page.graph_node_records[src_slot].first_out_edge;
-        let old_first_in = if src_page_id == dst_page_id {
-            src_page.graph_node_records[dst_slot].first_in_edge
-        } else {
-            self.storage.store.read_page(dst_page_id, &mut dst_buf, true)?;
-            let dst_page = *GraphNodePage::ref_from_bytes(&dst_buf[..])
-                .map_err(|_| NexoraStorageError::CorruptPage(dst_page_id.as_u64()))?;
-            let old_in = dst_page.graph_node_records[dst_slot].first_in_edge;
-            dst_page_opt = Some(dst_page);
-            old_in
-        };
+        let old_first_out = GraphNodeStore::new(self.storage).get_node(src_node_id)?.first_out_edge;
+        let old_first_in  = GraphNodeStore::new(self.storage).get_node(dst_node_id)?.first_in_edge;
 
         let edge = GraphEdgeRecord::new(edge_id, src_node_id, dst_node_id, label_id, weight, old_first_out, old_first_in);
         let (edge_page_id, slot) = self.insert_into_page(edge)?;
         let edge_ptr = PackedPtr::new(edge_page_id.as_u64(), slot as u8);
 
-        src_page.graph_node_records[src_slot].first_out_edge = edge_ptr;
-        if src_page_id == dst_page_id {
-            src_page.graph_node_records[dst_slot].first_in_edge = edge_ptr;
-            self.storage.store.write_page(src_page_id, src_page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
-        } else {
-            self.storage.store.write_page(src_page_id, src_page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
-            // reuse already-read dst_page — no second read
-            let mut dst_page = dst_page_opt.expect("set in else branch above");
-            dst_page.graph_node_records[dst_slot].first_in_edge = edge_ptr;
-            self.storage.store.write_page(dst_page_id, dst_page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
-        }
+        GraphNodeStore::new(self.storage).update_out_edge(src_node_id, edge_ptr)?;
+        GraphNodeStore::new(self.storage).update_in_edge(dst_node_id, edge_ptr)?;
 
         self.storage.footer.next_edge_id = U64::new(edge_id + 1);
         self.storage.footer.edge_count   = U64::new(self.storage.footer.edge_count.get() + 1);
@@ -99,7 +69,6 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
         Err(NexoraGraphEdgeError::EdgeNotFound)
     }
 
-    // Fix 2: find, delete, and repair chains in one scan — no double pass
     pub fn delete_edge(&mut self, edge_id: u64) -> Result<(), NexoraGraphEdgeError> {
         if edge_id >= self.storage.footer.next_edge_id.get() {
             return Err(NexoraGraphEdgeError::EdgeNotFound);
@@ -139,24 +108,15 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
     }
 
     pub fn outgoing_cursor(&mut self, node_id: u64) -> Result<RecordCursor, NexoraGraphEdgeError> {
-        let (page_id, slot) = self.find_node_location(node_id)?;
-        let mut buf = [0u8; PAGE_SIZE];
-        self.storage.store.read_page(page_id, &mut buf, true)?;
-        let node_page = GraphNodePage::ref_from_bytes(&buf[..])
-            .map_err(|_| NexoraStorageError::CorruptPage(page_id.as_u64()))?;
-        Ok(RecordCursor::new(node_page.graph_node_records[slot].first_out_edge))
+        let record = GraphNodeStore::new(self.storage).get_node(node_id)?;
+        Ok(RecordCursor::new(record.first_out_edge))
     }
 
     pub fn incoming_cursor(&mut self, node_id: u64) -> Result<RecordCursor, NexoraGraphEdgeError> {
-        let (page_id, slot) = self.find_node_location(node_id)?;
-        let mut buf = [0u8; PAGE_SIZE];
-        self.storage.store.read_page(page_id, &mut buf, true)?;
-        let node_page = GraphNodePage::ref_from_bytes(&buf[..])
-            .map_err(|_| NexoraStorageError::CorruptPage(page_id.as_u64()))?;
-        Ok(RecordCursor::new(node_page.graph_node_records[slot].first_in_edge))
+        let record = GraphNodeStore::new(self.storage).get_node(node_id)?;
+        Ok(RecordCursor::new(record.first_in_edge))
     }
 
-    // Fix 1: combined read+advance — one page read per hop instead of two
     pub fn cursor_next_outgoing(&mut self, cursor: &mut RecordCursor) -> Result<Option<GraphEdgeRecord>, NexoraGraphEdgeError> {
         if cursor.is_done() { return Ok(None); }
         let mut buf = [0u8; PAGE_SIZE];
@@ -338,20 +298,13 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
         Ok((new_page_id, slot))
     }
 
-    // Fix 3: single read per traversal step, track prev to avoid lookahead read
     fn remove_from_outgoing_chain(
         &mut self,
-        src_node_id: u64,
-        edge_id: u64,
+        src_node_id:   u64,
+        edge_id:       u64,
         next_outgoing: PackedPtr,
     ) -> Result<(), NexoraGraphEdgeError> {
-        let (node_page_id, node_slot) = self.find_node_location(src_node_id)?;
-        let mut node_buf = [0u8; PAGE_SIZE];
-        self.storage.store.read_page(node_page_id, &mut node_buf, true)?;
-        let mut node_page = *GraphNodePage::ref_from_bytes(&node_buf[..])
-            .map_err(|_| NexoraStorageError::CorruptPage(node_page_id.as_u64()))?;
-
-        let mut ptr = node_page.graph_node_records[node_slot].first_out_edge;
+        let mut ptr = GraphNodeStore::new(self.storage).get_node(src_node_id)?.first_out_edge;
         let mut prev_ptr: Option<PackedPtr> = None;
 
         while !ptr.is_null() {
@@ -364,10 +317,7 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
 
             if cur_page.edge_records[cur_slot].edge_id.get() == edge_id {
                 match prev_ptr {
-                    None => {
-                        node_page.graph_node_records[node_slot].first_out_edge = next_outgoing;
-                        self.storage.store.write_page(node_page_id, node_page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
-                    }
+                    None => GraphNodeStore::new(self.storage).update_out_edge(src_node_id, next_outgoing)?,
                     Some(prev) => {
                         let prev_page_id = PageId(prev.page_id());
                         let mut prev_buf = [0u8; PAGE_SIZE];
@@ -390,17 +340,11 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
 
     fn remove_from_incoming_chain(
         &mut self,
-        dst_node_id: u64,
-        edge_id: u64,
+        dst_node_id:   u64,
+        edge_id:       u64,
         next_incoming: PackedPtr,
     ) -> Result<(), NexoraGraphEdgeError> {
-        let (node_page_id, node_slot) = self.find_node_location(dst_node_id)?;
-        let mut node_buf = [0u8; PAGE_SIZE];
-        self.storage.store.read_page(node_page_id, &mut node_buf, true)?;
-        let mut node_page = *GraphNodePage::ref_from_bytes(&node_buf[..])
-            .map_err(|_| NexoraStorageError::CorruptPage(node_page_id.as_u64()))?;
-
-        let mut ptr = node_page.graph_node_records[node_slot].first_in_edge;
+        let mut ptr = GraphNodeStore::new(self.storage).get_node(dst_node_id)?.first_in_edge;
         let mut prev_ptr: Option<PackedPtr> = None;
 
         while !ptr.is_null() {
@@ -413,10 +357,7 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
 
             if cur_page.edge_records[cur_slot].edge_id.get() == edge_id {
                 match prev_ptr {
-                    None => {
-                        node_page.graph_node_records[node_slot].first_in_edge = next_incoming;
-                        self.storage.store.write_page(node_page_id, node_page.as_bytes().try_into().expect("GraphNodePage is PAGE_SIZE"), true)?;
-                    }
+                    None => GraphNodeStore::new(self.storage).update_in_edge(dst_node_id, next_incoming)?,
                     Some(prev) => {
                         let prev_page_id = PageId(prev.page_id());
                         let mut prev_buf = [0u8; PAGE_SIZE];
@@ -435,32 +376,5 @@ impl<'a, S: PageStore> GraphEdgeStore<'a, S> {
         }
 
         Err(NexoraGraphEdgeError::EdgeNotFound)
-    }
-
-    fn find_node_location(&mut self, node_id: u64) -> Result<(PageId, usize), NexoraGraphEdgeError> {
-        let mut page_id_val = self.storage.footer.first_node_page.get();
-        while page_id_val != SENTINEL_PAGE_ID {
-            let page_id = PageId(page_id_val);
-            let mut buf = [0u8; PAGE_SIZE];
-            self.storage.store.read_page(page_id, &mut buf, true)?;
-            let page = GraphNodePage::ref_from_bytes(&buf[..])
-                .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
-
-            if node_id >= page.graph_page_header.min_node_id.get()
-            && node_id <= page.graph_page_header.max_node_id.get() {
-                let mut bits = page.graph_page_header.occupied.get();
-                while bits != 0 {
-                    let slot = bits.trailing_zeros() as usize;
-                    if page.graph_node_records[slot].node_id.get() == node_id {
-                        return Ok((page_id, slot));
-                    }
-                    bits &= bits - 1;
-                }
-            }
-
-            page_id_val = page.page_header.next_page_id.get();
-        }
-
-        Err(NexoraGraphEdgeError::NodeNotFound)
     }
 }

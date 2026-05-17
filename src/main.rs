@@ -5,8 +5,7 @@ use nexora::storage::error::NexoraStorageError;
 
 fn main() -> Result<(), NexoraStorageError> {
     let page_store = RegularPageStore::create(std::path::Path::new("./test.nex"))?;
-    let buffer_store = BufferStore::new_boxed(page_store);
-    let mut _storage_manager = StorageManager::from_page_store(*buffer_store)?;
+    let mut _storage_manager = StorageManager::from_page_store(BufferStore::new(page_store))?;
 
     _storage_manager.close()?;
     Ok(())

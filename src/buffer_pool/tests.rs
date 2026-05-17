@@ -31,14 +31,12 @@ mod tests {
 
     fn create_buffered(path: &PathBuf) -> StorageManager<BufferStore<RegularPageStore>> {
         let store = RegularPageStore::create(path).unwrap();
-        let buf = BufferStore::new_boxed(store);
-        StorageManager::from_page_store(*buf).unwrap()
+        StorageManager::from_page_store(BufferStore::new(store)).unwrap()
     }
 
     fn open_buffered(path: &PathBuf) -> StorageManager<BufferStore<RegularPageStore>> {
         let store = RegularPageStore::open(path).unwrap();
-        let buf = BufferStore::new_boxed(store);
-        StorageManager::from_page_store(*buf).unwrap()
+        StorageManager::from_page_store(BufferStore::new(store)).unwrap()
     }
 
     fn open_direct(path: &PathBuf) -> StorageManager<RegularPageStore> {
