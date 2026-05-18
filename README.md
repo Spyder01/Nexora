@@ -4,6 +4,8 @@ A native graph database engine in a single file — embeddable, zero external de
 
 > **Status:** Early development. Core storage, graph primitives, and traversal APIs are functional. WAL, query language, and Lua scripting are in progress.
 
+**[→ Full user documentation](DOC.md)**
+
 ---
 
 ## What it is
