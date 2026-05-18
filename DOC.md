@@ -302,61 +302,75 @@ Deleted nodes and edges are skipped automatically.
 
 ## 8. Multi-hop traversal patterns
 
-### Breadth-first search (BFS)
+Nexora provides built-in traversal methods on `db` for common graph algorithms. All callback-based methods receive node/edge data as a table; return `false` to stop early, or return nothing to continue.
+
+### for_each_outgoing / for_each_incoming
+
+Visit every edge leaving (or arriving at) a node, one hop at a time.
 
 ```lua
-function bfs(start, max_depth)
-    local visited = {}
-    local queue   = {{id=start, depth=0}}
-    visited[start] = true
+db:for_each_outgoing(alice, function(edge)
+    print(edge.src, "──"..edge.label.."──▶", edge.dst)
+end)
 
-    while #queue > 0 do
-        local item = table.remove(queue, 1)
-        local node = db:get_node(item.id)
-        print(string.rep("  ", item.depth) .. "#"..node.id.." "..node.label)
-
-        if item.depth < max_depth then
-            local cur = db:outgoing_cursor(item.id)
-            while true do
-                local edge = db:next_outgoing(cur)
-                if not edge then break end
-                if not visited[edge.dst] then
-                    visited[edge.dst] = true
-                    table.insert(queue, {id=edge.dst, depth=item.depth+1})
-                end
-            end
-        end
-    end
-end
-
-bfs(0, 3)
+db:for_each_incoming(london, function(edge)
+    print(edge.src, "──▶", edge.dst)
+    if edge.label == "LIVES_IN" then return false end  -- stop early
+end)
 ```
 
-### Depth-first search (DFS)
+Each `edge` table has: `id`, `src`, `dst`, `label`, `weight`.
+
+### bfs
+
+Breadth-first search from `start`, visiting nodes level by level up to `max_depth` hops. Each node is visited at most once.
 
 ```lua
-function dfs(node_id, depth, max_depth, visited)
-    visited = visited or {}
-    if visited[node_id] then return end
-    visited[node_id] = true
-
-    local node = db:get_node(node_id)
+db:bfs(alice, 3, function(node, depth)
     print(string.rep("  ", depth) .. "#"..node.id.." "..node.label)
-
-    if depth < max_depth then
-        local cur = db:outgoing_cursor(node_id)
-        while true do
-            local edge = db:next_outgoing(cur)
-            if not edge then break end
-            dfs(edge.dst, depth+1, max_depth, visited)
-        end
-    end
-end
-
-dfs(0, 0, 3)
+end)
 ```
 
-### Follow a specific edge label
+The callback receives a `node` table (`id`, `label`) and the integer `depth` (0 = start node).
+
+### dfs
+
+Depth-first search from `start`, up to `max_depth` hops.
+
+```lua
+db:dfs(alice, 3, function(node, depth)
+    print(string.rep("  ", depth) .. node.label)
+end)
+```
+
+### has_path
+
+Returns `true` if a directed path exists from `src` to `dst`. A node is always reachable from itself.
+
+```lua
+if db:has_path(alice, bob) then
+    print("connected")
+end
+```
+
+### shortest_path
+
+Returns the shortest directed path (fewest hops) as an ordered array of node IDs, or `nil` if no path exists.
+
+```lua
+local path = db:shortest_path(alice, bob)
+if path then
+    for i, id in ipairs(path) do
+        print(i, db:get_node(id).label)
+    end
+else
+    print("no path")
+end
+```
+
+### Follow a specific edge label (manual pattern)
+
+When you need to filter by label during traversal, use `for_each_outgoing` with a queue yourself:
 
 ```lua
 function follow(start, label, max_depth)
@@ -370,15 +384,12 @@ function follow(start, label, max_depth)
         print(string.rep("  ", item.depth) .. node.label.." #"..item.id)
 
         if item.depth < max_depth then
-            local cur = db:outgoing_cursor(item.id)
-            while true do
-                local edge = db:next_outgoing(cur)
-                if not edge then break end
+            db:for_each_outgoing(item.id, function(edge)
                 if edge.label == label and not visited[edge.dst] then
                     visited[edge.dst] = true
                     table.insert(queue, {id=edge.dst, depth=item.depth+1})
                 end
-            end
+            end)
         end
     end
 end
@@ -386,34 +397,7 @@ end
 follow(0, "KNOWS", 2)
 ```
 
-### Collect all reachable nodes
-
-```lua
-function reachable(start)
-    local visited = {}
-    local stack   = {start}
-    while #stack > 0 do
-        local id = table.remove(stack)
-        if not visited[id] then
-            visited[id] = true
-            local cur = db:outgoing_cursor(id)
-            while true do
-                local edge = db:next_outgoing(cur)
-                if not edge then break end
-                if not visited[edge.dst] then
-                    table.insert(stack, edge.dst)
-                end
-            end
-        end
-    end
-    return visited
-end
-
-local nodes = reachable(0)
-for id in pairs(nodes) do print(id) end
-```
-
-> **Note:** Always maintain a `visited` table. Without it, a cycle in the graph will loop forever.
+> **Note:** The built-in `bfs`/`dfs` traverse all edge labels. Use the manual pattern above when you need to filter by label.
 
 ---
 

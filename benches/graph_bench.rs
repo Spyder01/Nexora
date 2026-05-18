@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use nexora::api::traversal::{Traversal, TraverseApi, Visit};
 use nexora::graph::graphstore::graphstore::GraphStore;
 use nexora::graph::node::constants::MAX_RECORD_COUNT;
 
@@ -432,6 +433,253 @@ fn bench_incoming_traversal(c: &mut Criterion) {
     group.finish();
 }
 
+// Traversal-benchmark graph sizes — default cap is lower than node/edge sizes
+// because each iteration is O(V+E), not O(1). Raise with NEXORA_BENCH_MAX.
+fn traversal_sizes() -> Vec<u64> {
+    let max = std::env::var("NEXORA_BENCH_MAX")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10_000u64);
+
+    [100u64, 1_000, 10_000, 100_000]
+        .iter()
+        .copied()
+        .filter(|&n| n <= max)
+        .collect()
+}
+
+// Build a chain graph (0 -> 1 -> 2 -> ... -> n-1) and persist it.
+fn build_chain(path: &std::path::Path, n: u64) {
+    cleanup(path);
+    let path = path.to_path_buf();
+    run_on_large_stack(move || {
+        let mut gs = GraphStore::create(&path).unwrap();
+        for _ in 0..n {
+            gs.insert_node("N").unwrap();
+        }
+        for i in 0..n - 1 {
+            gs.insert_edge(i, i + 1, "E", 1.0).unwrap();
+        }
+        gs.close().unwrap();
+    });
+}
+
+// --- traversal::for_each_outgoing: walk hub outgoing edges via TraverseApi ---
+fn bench_trav_for_each_outgoing(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trav_for_each_outgoing");
+
+    for &degree in &[10u64, 100, 500] {
+        let path = tmp_path(&format!("bench_trav_out_{}.nxr", degree));
+        cleanup(&path);
+
+        run_on_large_stack({
+            let path = path.clone();
+            move || {
+                let mut gs = GraphStore::create(&path).unwrap();
+                let hub = gs.insert_node("Hub").unwrap();
+                for _ in 0..degree {
+                    let dst = gs.insert_node("Spoke").unwrap();
+                    gs.insert_edge(hub, dst, "E", 1.0).unwrap();
+                }
+                gs.close().unwrap();
+            }
+        });
+
+        group.bench_with_input(BenchmarkId::from_parameter(degree), &degree, |b, _| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        Traversal::new(&mut gs)
+                            .for_each_outgoing(0, |e| {
+                                black_box(e);
+                                Visit::Continue
+                            })
+                            .unwrap();
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
+// --- traversal::bfs: full BFS over a chain of N nodes, max_depth=N ---
+fn bench_trav_bfs(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trav_bfs");
+
+    for n in traversal_sizes() {
+        let path = tmp_path(&format!("bench_trav_bfs_{}.nxr", n));
+        build_chain(&path, n);
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        Traversal::new(&mut gs)
+                            .bfs(0, n as usize, |node, depth| {
+                                black_box((node, depth));
+                                Visit::Continue
+                            })
+                            .unwrap();
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
+// --- traversal::dfs: full DFS over a chain of N nodes, max_depth=N ---
+fn bench_trav_dfs(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trav_dfs");
+
+    for n in traversal_sizes() {
+        let path = tmp_path(&format!("bench_trav_dfs_{}.nxr", n));
+        build_chain(&path, n);
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        Traversal::new(&mut gs)
+                            .dfs(0, n as usize, |node, depth| {
+                                black_box((node, depth));
+                                Visit::Continue
+                            })
+                            .unwrap();
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
+// --- traversal::has_path reachable: src=0, dst=N-1 in a chain ---
+fn bench_trav_has_path_reachable(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trav_has_path_reachable");
+
+    for n in traversal_sizes() {
+        let path = tmp_path(&format!("bench_trav_hp_reach_{}.nxr", n));
+        build_chain(&path, n);
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        black_box(Traversal::new(&mut gs).has_path(0, n - 1).unwrap());
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
+// --- traversal::has_path unreachable: isolated dst node at end of chain ---
+fn bench_trav_has_path_unreachable(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trav_has_path_unreachable");
+
+    for n in traversal_sizes() {
+        let path = tmp_path(&format!("bench_trav_hp_unreach_{}.nxr", n));
+        // Chain 0..n-1 plus one isolated node at id=n (no edges).
+        cleanup(&path);
+        {
+            let path = path.clone();
+            run_on_large_stack(move || {
+                let mut gs = GraphStore::create(&path).unwrap();
+                for _ in 0..=n {
+                    gs.insert_node("N").unwrap();
+                }
+                for i in 0..n - 1 {
+                    gs.insert_edge(i, i + 1, "E", 1.0).unwrap();
+                }
+                gs.close().unwrap();
+            });
+        }
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        // dst=n is isolated; forces a full BFS before returning false
+                        black_box(Traversal::new(&mut gs).has_path(0, n).unwrap());
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
+// --- traversal::shortest_path: src=0, dst=N-1 in a chain ---
+fn bench_trav_shortest_path(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trav_shortest_path");
+
+    for n in traversal_sizes() {
+        let path = tmp_path(&format!("bench_trav_sp_{}.nxr", n));
+        build_chain(&path, n);
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        black_box(Traversal::new(&mut gs).shortest_path(0, n - 1).unwrap());
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_insert_node,
@@ -444,5 +692,11 @@ criterion_group!(
     bench_bulk_insert,
     bench_bulk_insert_edges,
     bench_scan_all_nodes,
+    bench_trav_for_each_outgoing,
+    bench_trav_bfs,
+    bench_trav_dfs,
+    bench_trav_has_path_reachable,
+    bench_trav_has_path_unreachable,
+    bench_trav_shortest_path,
 );
 criterion_main!(benches);
