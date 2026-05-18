@@ -1,12 +1,34 @@
-use nexora::buffer_pool::models::BufferStore;
-use nexora::storage::storage_manager::StorageManager;
-use nexora::storage::page_store_disk::RegularPageStore;
-use nexora::storage::error::NexoraStorageError;
+use clap::Parser;
+use nexora::lua::repl::{OpenMode, run};
 
-fn main() -> Result<(), NexoraStorageError> {
-    let page_store = RegularPageStore::create(std::path::Path::new("./test.nex"))?;
-    let mut _storage_manager = StorageManager::from_page_store(BufferStore::new(page_store))?;
+/// Nexora — embedded graph database
+#[derive(Parser)]
+#[command(
+    name    = "nexora",
+    version,
+    about   = "Nexora — embedded graph database with a Lua scripting REPL",
+    long_about = None,
+)]
+struct Cli {
+    /// Path to the database file.
+    #[arg(
+        value_name = "PATH",
+        default_value = "nexora.nxr",
+        help = "Database file (created automatically if it does not exist)"
+    )]
+    path: std::path::PathBuf,
 
-    _storage_manager.close()?;
-    Ok(())
+    /// Create a new database. Exits with an error if the file already exists.
+    #[arg(long, help = "Force-create a new database (fails if PATH already exists)")]
+    new: bool,
+}
+
+fn main() {
+    let cli = Cli::parse();
+    let mode = if cli.new { OpenMode::ForceNew } else { OpenMode::Auto };
+
+    if let Err(e) = run(&cli.path, mode) {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
 }

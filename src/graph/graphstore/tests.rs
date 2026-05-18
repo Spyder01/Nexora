@@ -26,7 +26,7 @@ mod tests {
     // Test 1 — insert and get node round trip
     #[test]
     fn test_insert_and_get_node() {
-        let path = tmp_path("test_gs_insert_get_node.nxra");
+        let path = tmp_path("test_gs_insert_get_node.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -42,7 +42,7 @@ mod tests {
     // Test 2 — delete node then get returns error
     #[test]
     fn test_delete_node() {
-        let path = tmp_path("test_gs_delete_node.nxra");
+        let path = tmp_path("test_gs_delete_node.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -57,7 +57,7 @@ mod tests {
     // Test 3 — insert and get edge round trip
     #[test]
     fn test_insert_and_get_edge() {
-        let path = tmp_path("test_gs_insert_get_edge.nxra");
+        let path = tmp_path("test_gs_insert_get_edge.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -78,7 +78,7 @@ mod tests {
     // Test 4 — delete edge then get returns error
     #[test]
     fn test_delete_edge() {
-        let path = tmp_path("test_gs_delete_edge.nxra");
+        let path = tmp_path("test_gs_delete_edge.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -95,7 +95,7 @@ mod tests {
     // Test 5 — outgoing cursor visits all edges from a node
     #[test]
     fn test_outgoing_cursor() {
-        let path = tmp_path("test_gs_outgoing_cursor.nxra");
+        let path = tmp_path("test_gs_outgoing_cursor.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -120,7 +120,7 @@ mod tests {
     // Test 6 — incoming cursor visits all edges to a node
     #[test]
     fn test_incoming_cursor() {
-        let path = tmp_path("test_gs_incoming_cursor.nxra");
+        let path = tmp_path("test_gs_incoming_cursor.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -145,7 +145,7 @@ mod tests {
     // Test 7 — nodes and edges survive close and reopen
     #[test]
     fn test_persistence() {
-        let path = tmp_path("test_gs_persistence.nxra");
+        let path = tmp_path("test_gs_persistence.nxr");
         cleanup(&path);
         run(move || {
             let (node_id, edge_id) = {
@@ -171,7 +171,7 @@ mod tests {
     // Test 8 — multiple node labels are stored independently
     #[test]
     fn test_multiple_node_labels() {
-        let path = tmp_path("test_gs_multi_labels.nxra");
+        let path = tmp_path("test_gs_multi_labels.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -189,7 +189,7 @@ mod tests {
     // Test 9 — set and get a node property
     #[test]
     fn test_set_and_get_node_property() {
-        let path = tmp_path("test_gs_node_prop.nxra");
+        let path = tmp_path("test_gs_node_prop.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -206,7 +206,7 @@ mod tests {
     // Test 10 — updating an existing node property replaces the value
     #[test]
     fn test_update_node_property() {
-        let path = tmp_path("test_gs_node_prop_update.nxra");
+        let path = tmp_path("test_gs_node_prop_update.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -224,7 +224,7 @@ mod tests {
     // Test 11 — multiple properties on the same node
     #[test]
     fn test_multiple_node_properties() {
-        let path = tmp_path("test_gs_multi_node_props.nxra");
+        let path = tmp_path("test_gs_multi_node_props.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -244,7 +244,7 @@ mod tests {
     // Test 12 — get a nonexistent property returns None
     #[test]
     fn test_get_missing_property() {
-        let path = tmp_path("test_gs_missing_prop.nxra");
+        let path = tmp_path("test_gs_missing_prop.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -259,7 +259,7 @@ mod tests {
     // Test 13 — set and get an edge property
     #[test]
     fn test_set_and_get_edge_property() {
-        let path = tmp_path("test_gs_edge_prop.nxra");
+        let path = tmp_path("test_gs_edge_prop.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -278,7 +278,7 @@ mod tests {
     // Test 14 — node properties survive close and reopen
     #[test]
     fn test_node_property_persistence() {
-        let path = tmp_path("test_gs_prop_persist.nxra");
+        let path = tmp_path("test_gs_prop_persist.nxr");
         cleanup(&path);
         run(move || {
             let node_id = {
@@ -301,7 +301,7 @@ mod tests {
     // Test 15 — deleting a node also deletes its incident edges
     #[test]
     fn test_delete_node_cascades() {
-        let path = tmp_path("test_gs_cascade.nxra");
+        let path = tmp_path("test_gs_cascade.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -323,7 +323,7 @@ mod tests {
     // Test 16 — self-loop is cleaned up on node delete
     #[test]
     fn test_delete_node_self_loop() {
-        let path = tmp_path("test_gs_self_loop_cascade.nxra");
+        let path = tmp_path("test_gs_self_loop_cascade.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -339,7 +339,7 @@ mod tests {
     // Test 17 — delete a node property, subsequent get returns None
     #[test]
     fn test_delete_node_property() {
-        let path = tmp_path("test_gs_delete_node_prop.nxra");
+        let path = tmp_path("test_gs_delete_node_prop.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -356,7 +356,7 @@ mod tests {
     // Test 18 — delete a nonexistent node property returns false
     #[test]
     fn test_delete_nonexistent_node_property() {
-        let path = tmp_path("test_gs_delete_missing_prop.nxra");
+        let path = tmp_path("test_gs_delete_missing_prop.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -370,7 +370,7 @@ mod tests {
     // Test 19 — delete middle property, head and tail remain intact
     #[test]
     fn test_delete_middle_node_property() {
-        let path = tmp_path("test_gs_delete_mid_prop.nxra");
+        let path = tmp_path("test_gs_delete_mid_prop.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -393,7 +393,7 @@ mod tests {
     // Test 20 — delete an edge property, subsequent get returns None
     #[test]
     fn test_delete_edge_property() {
-        let path = tmp_path("test_gs_delete_edge_prop.nxra");
+        let path = tmp_path("test_gs_delete_edge_prop.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -412,7 +412,7 @@ mod tests {
     // Test 21 — deleted slot is reused on next insert
     #[test]
     fn test_deleted_slot_reuse() {
-        let path = tmp_path("test_gs_slot_reuse.nxra");
+        let path = tmp_path("test_gs_slot_reuse.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -431,7 +431,7 @@ mod tests {
     // Test 22 — deleting a node also frees its property chain
     #[test]
     fn test_delete_node_frees_properties() {
-        let path = tmp_path("test_gs_delete_node_props.nxra");
+        let path = tmp_path("test_gs_delete_node_props.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -448,7 +448,7 @@ mod tests {
     // Test 23 — deleting an edge also frees its property chain
     #[test]
     fn test_delete_edge_frees_properties() {
-        let path = tmp_path("test_gs_delete_edge_props.nxra");
+        let path = tmp_path("test_gs_delete_edge_props.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -467,7 +467,7 @@ mod tests {
     // Test 24 — cascade delete also frees properties on incident edges
     #[test]
     fn test_delete_node_cascade_frees_edge_properties() {
-        let path = tmp_path("test_gs_cascade_edge_props.nxra");
+        let path = tmp_path("test_gs_cascade_edge_props.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -486,7 +486,7 @@ mod tests {
     // Test 25 — update node label
     #[test]
     fn test_update_node() {
-        let path = tmp_path("test_gs_update_node.nxra");
+        let path = tmp_path("test_gs_update_node.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -503,7 +503,7 @@ mod tests {
     // Test 26 — update edge label and weight
     #[test]
     fn test_update_edge() {
-        let path = tmp_path("test_gs_update_edge.nxra");
+        let path = tmp_path("test_gs_update_edge.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -527,7 +527,7 @@ mod tests {
     // Test 27 — update survives close and reopen
     #[test]
     fn test_update_persistence() {
-        let path = tmp_path("test_gs_update_persist.nxra");
+        let path = tmp_path("test_gs_update_persist.nxr");
         cleanup(&path);
         run(move || {
             let (nid, eid) = {
@@ -558,7 +558,7 @@ mod tests {
     // Test 28 — scan all nodes visits every inserted node
     #[test]
     fn test_scan_all_nodes() {
-        let path = tmp_path("test_gs_scan_nodes.nxra");
+        let path = tmp_path("test_gs_scan_nodes.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -582,7 +582,7 @@ mod tests {
     // Test 29 — scan all edges visits every inserted edge
     #[test]
     fn test_scan_all_edges() {
-        let path = tmp_path("test_gs_scan_edges.nxra");
+        let path = tmp_path("test_gs_scan_edges.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -609,7 +609,7 @@ mod tests {
     // Test 30 — scan skips deleted nodes
     #[test]
     fn test_scan_skips_deleted_nodes() {
-        let path = tmp_path("test_gs_scan_skip_deleted.nxra");
+        let path = tmp_path("test_gs_scan_skip_deleted.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -634,7 +634,7 @@ mod tests {
     // Test 31 — scan on empty store returns nothing
     #[test]
     fn test_scan_empty_store() {
-        let path = tmp_path("test_gs_scan_empty.nxra");
+        let path = tmp_path("test_gs_scan_empty.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -650,7 +650,7 @@ mod tests {
     // Test 32 — iterate all node properties
     #[test]
     fn test_iter_node_properties() {
-        let path = tmp_path("test_gs_iter_node_props.nxra");
+        let path = tmp_path("test_gs_iter_node_props.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -675,7 +675,7 @@ mod tests {
     // Test 33 — iterate all edge properties
     #[test]
     fn test_iter_edge_properties() {
-        let path = tmp_path("test_gs_iter_edge_props.nxra");
+        let path = tmp_path("test_gs_iter_edge_props.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -700,7 +700,7 @@ mod tests {
     // Test 34 — cursor on node with no properties is immediately done
     #[test]
     fn test_iter_empty_properties() {
-        let path = tmp_path("test_gs_iter_empty_props.nxra");
+        let path = tmp_path("test_gs_iter_empty_props.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();
@@ -715,7 +715,7 @@ mod tests {
     // Test 35 — deleted property does not appear in iteration
     #[test]
     fn test_iter_skips_deleted_property() {
-        let path = tmp_path("test_gs_iter_skip_deleted.nxra");
+        let path = tmp_path("test_gs_iter_skip_deleted.nxr");
         cleanup(&path);
         run(move || {
             let mut gs = GraphStore::create(&path).unwrap();

@@ -25,7 +25,7 @@ mod tests {
     // Test 1 — basic insert and get round-trip
     #[test]
     fn test_insert_and_get_label() {
-        let path = tmp_path("test_label_insert_get.nxra");
+        let path = tmp_path("test_label_insert_get.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -43,7 +43,7 @@ mod tests {
     // Test 2 — label IDs are sequential starting from 0
     #[test]
     fn test_label_ids_are_sequential() {
-        let path = tmp_path("test_label_sequential.nxra");
+        let path = tmp_path("test_label_sequential.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -62,7 +62,7 @@ mod tests {
     // Test 3 — multiple labels all readable
     #[test]
     fn test_multiple_labels() {
-        let path = tmp_path("test_label_multiple.nxra");
+        let path = tmp_path("test_label_multiple.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -84,7 +84,7 @@ mod tests {
     // Test 4 — get nonexistent label returns LabelNotFound
     #[test]
     fn test_get_nonexistent_label() {
-        let path = tmp_path("test_label_not_found.nxra");
+        let path = tmp_path("test_label_not_found.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -97,7 +97,7 @@ mod tests {
     // Test 5 — labels survive close and reopen
     #[test]
     fn test_label_persistence() {
-        let path = tmp_path("test_label_persistence.nxra");
+        let path = tmp_path("test_label_persistence.nxr");
         cleanup(&path);
 
         let label_id = {
@@ -126,7 +126,7 @@ mod tests {
     // Test 6 — inserting the same string twice returns the same label_id
     #[test]
     fn test_dedup_same_string_same_id() {
-        let path = tmp_path("test_label_dedup_same.nxra");
+        let path = tmp_path("test_label_dedup_same.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -141,7 +141,7 @@ mod tests {
     // Test 7 — inserting the same string many times does not increment the count
     #[test]
     fn test_dedup_count_does_not_grow() {
-        let path = tmp_path("test_label_dedup_count.nxra");
+        let path = tmp_path("test_label_dedup_count.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -158,7 +158,7 @@ mod tests {
     // Test 8 — different strings get different label_ids
     #[test]
     fn test_dedup_different_strings_different_ids() {
-        let path = tmp_path("test_label_dedup_diff.nxra");
+        let path = tmp_path("test_label_dedup_diff.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -173,7 +173,7 @@ mod tests {
     // Test 9 — dedup is case-sensitive
     #[test]
     fn test_dedup_case_sensitive() {
-        let path = tmp_path("test_label_dedup_case.nxra");
+        let path = tmp_path("test_label_dedup_case.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -188,7 +188,7 @@ mod tests {
     // Test 10 — dedup works when the duplicate is on a second label page
     #[test]
     fn test_dedup_across_page_boundary() {
-        let path = tmp_path("test_label_dedup_overflow.nxra");
+        let path = tmp_path("test_label_dedup_overflow.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);
@@ -207,7 +207,7 @@ mod tests {
     // Test 11 — dedup survives close and reopen
     #[test]
     fn test_dedup_persistence() {
-        let path = tmp_path("test_label_dedup_persist.nxra");
+        let path = tmp_path("test_label_dedup_persist.nxr");
         cleanup(&path);
 
         let id_first = {
@@ -230,7 +230,7 @@ mod tests {
     // Test 12 — insert enough labels to overflow onto a second page
     #[test]
     fn test_label_page_overflow() {
-        let path = tmp_path("test_label_page_overflow.nxra");
+        let path = tmp_path("test_label_page_overflow.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStore::new(&mut manager);

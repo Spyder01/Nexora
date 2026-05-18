@@ -21,7 +21,7 @@ mod tests {
     // Test 1 — basic insert and get round trip
     #[test]
     fn test_insert_and_get_property() {
-        let path = tmp_path("test_prop_insert_get.nxra");
+        let path = tmp_path("test_prop_insert_get.nxr");
         cleanup(&path);
 
         let store   = RegularPageStore::create(&path).unwrap();
@@ -43,7 +43,7 @@ mod tests {
     // Test 2 — get after delete returns RecordNotFound
     #[test]
     fn test_get_deleted_property() {
-        let path = tmp_path("test_prop_delete.nxra");
+        let path = tmp_path("test_prop_delete.nxr");
         cleanup(&path);
 
         let store   = RegularPageStore::create(&path).unwrap();
@@ -62,7 +62,7 @@ mod tests {
     // Test 3 — slot reuse after delete
     #[test]
     fn test_slot_reuse_after_delete() {
-        let path = tmp_path("test_prop_slot_reuse.nxra");
+        let path = tmp_path("test_prop_slot_reuse.nxr");
         cleanup(&path);
 
         let store   = RegularPageStore::create(&path).unwrap();
@@ -84,7 +84,7 @@ mod tests {
     // Test 4 — insert multiple properties
     #[test]
     fn test_insert_multiple_properties() {
-        let path = tmp_path("test_prop_multiple.nxra");
+        let path = tmp_path("test_prop_multiple.nxr");
         cleanup(&path);
 
         let store   = RegularPageStore::create(&path).unwrap();
@@ -109,7 +109,7 @@ mod tests {
     // Test 5 — filling a page causes a second page to be allocated
     #[test]
     fn test_property_page_overflow() {
-        let path = tmp_path("test_prop_overflow.nxra");
+        let path = tmp_path("test_prop_overflow.nxr");
         cleanup(&path);
 
         let store   = RegularPageStore::create(&path).unwrap();
@@ -132,7 +132,7 @@ mod tests {
     // Test 6 — properties survive a reopen
     #[test]
     fn test_property_persistence() {
-        let path = tmp_path("test_prop_persistence.nxra");
+        let path = tmp_path("test_prop_persistence.nxr");
         cleanup(&path);
 
         let ptr = {

@@ -19,7 +19,7 @@ mod tests {
     // Test 1 — single insert and lookup round-trip
     #[test]
     fn test_insert_and_lookup() {
-        let path = tmp_path("test_index_insert_lookup.nxra");
+        let path = tmp_path("test_index_insert_lookup.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -35,7 +35,7 @@ mod tests {
     // Test 2 — multiple inserts on the same directory page
     #[test]
     fn test_multiple_inserts_single_dir_page() {
-        let path = tmp_path("test_index_multi_insert.nxra");
+        let path = tmp_path("test_index_multi_insert.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -55,7 +55,7 @@ mod tests {
     // Test 3 — overflow onto a second directory page
     #[test]
     fn test_dir_page_overflow() {
-        let path = tmp_path("test_index_dir_overflow.nxra");
+        let path = tmp_path("test_index_dir_overflow.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -76,7 +76,7 @@ mod tests {
     // Test 4 — directory survives close and reopen
     #[test]
     fn test_index_persistence() {
-        let path = tmp_path("test_index_persistence.nxra");
+        let path = tmp_path("test_index_persistence.nxr");
         cleanup(&path);
 
         {
@@ -106,7 +106,7 @@ mod tests {
     // Test 5 — directory spanning two pages survives close and reopen
     #[test]
     fn test_multi_dir_page_persistence() {
-        let path = tmp_path("test_index_multi_dir_persistence.nxra");
+        let path = tmp_path("test_index_multi_dir_persistence.nxr");
         cleanup(&path);
 
         let count = MAX_NODE_PAGE_INDEX_RECORD_COUNT + 3;

@@ -95,7 +95,7 @@ mod tests {
     // Test 6 — basic insert and get round-trip
     #[test]
     fn test_insert_and_get_short_string() {
-        let path = tmp_path("test_str_insert_get.nxra");
+        let path = tmp_path("test_str_insert_get.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = StringStore::new(&mut manager);
@@ -115,7 +115,7 @@ mod tests {
     // Test 7 — multiple strings on the same page
     #[test]
     fn test_insert_multiple_strings() {
-        let path = tmp_path("test_str_multiple.nxra");
+        let path = tmp_path("test_str_multiple.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = StringStore::new(&mut manager);
@@ -137,7 +137,7 @@ mod tests {
     // Test 8 — string longer than MAX_STRING_CHUNK_SIZE spans multiple pages
     #[test]
     fn test_insert_overflow_string() {
-        let path = tmp_path("test_str_overflow.nxra");
+        let path = tmp_path("test_str_overflow.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = StringStore::new(&mut manager);
@@ -157,7 +157,7 @@ mod tests {
     // Test 9 — get with undersized buffer returns BufferTooSmall
     #[test]
     fn test_buffer_too_small() {
-        let path = tmp_path("test_str_buf_small.nxra");
+        let path = tmp_path("test_str_buf_small.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = StringStore::new(&mut manager);
@@ -173,7 +173,7 @@ mod tests {
     // Test 10 — insert exceeding MAX_STRING_LENGTH returns StringTooLong
     #[test]
     fn test_string_too_long() {
-        let path = tmp_path("test_str_too_long.nxra");
+        let path = tmp_path("test_str_too_long.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = StringStore::new(&mut manager);
@@ -187,7 +187,7 @@ mod tests {
     // Test 11 — string survives close and reopen
     #[test]
     fn test_string_persistence() {
-        let path = tmp_path("test_str_persistence.nxra");
+        let path = tmp_path("test_str_persistence.nxr");
         cleanup(&path);
 
         let ptr = {
@@ -216,7 +216,7 @@ mod tests {
     // Test 13 — delete frees all chunks in an overflow chain
     #[test]
     fn test_delete_string() {
-        let path = tmp_path("test_str_delete.nxra");
+        let path = tmp_path("test_str_delete.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -251,7 +251,7 @@ mod tests {
     fn test_label_string_insert_and_get() {
         use crate::graph::string::label_string_store::LabelStringStore;
 
-        let path = tmp_path("test_lstr_insert_get.nxra");
+        let path = tmp_path("test_lstr_insert_get.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStringStore::new(&mut manager);
@@ -270,7 +270,7 @@ mod tests {
     fn test_label_string_chain_independent_from_string_chain() {
         use crate::graph::string::label_string_store::LabelStringStore;
 
-        let path = tmp_path("test_lstr_independent_chain.nxra");
+        let path = tmp_path("test_lstr_independent_chain.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -295,7 +295,7 @@ mod tests {
     fn test_label_string_multiple() {
         use crate::graph::string::label_string_store::LabelStringStore;
 
-        let path = tmp_path("test_lstr_multiple.nxra");
+        let path = tmp_path("test_lstr_multiple.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = LabelStringStore::new(&mut manager);
@@ -317,7 +317,7 @@ mod tests {
     fn test_label_string_persistence() {
         use crate::graph::string::label_string_store::LabelStringStore;
 
-        let path = tmp_path("test_lstr_persistence.nxra");
+        let path = tmp_path("test_lstr_persistence.nxr");
         cleanup(&path);
 
         let ptr = {
@@ -341,7 +341,7 @@ mod tests {
     // Test 12 — enough strings to fill one page, spill to a second
     #[test]
     fn test_page_overflow_to_new_page() {
-        let path = tmp_path("test_str_page_overflow.nxra");
+        let path = tmp_path("test_str_page_overflow.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
         let mut store = StringStore::new(&mut manager);

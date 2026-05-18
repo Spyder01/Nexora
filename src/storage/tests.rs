@@ -22,7 +22,7 @@ mod tests {
     // Test 1 — create and reopen: header survives close/reopen cycle
     #[test]
     fn test_create_and_reopen() {
-        let path = tmp_path("test_create_and_reopen.nxra");
+        let path = tmp_path("test_create_and_reopen.nxr");
         cleanup(&path);
 
         {
@@ -43,7 +43,7 @@ mod tests {
     // Test 2 — page I/O round trip: write bytes, read them back
     #[test]
     fn test_page_io_round_trip() {
-        let path = tmp_path("test_page_io_round_trip.nxra");
+        let path = tmp_path("test_page_io_round_trip.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -69,7 +69,7 @@ mod tests {
     // Test 3 — checksum mismatch: corrupted page is detected
     #[test]
     fn test_checksum_mismatch() {
-        let path = tmp_path("test_checksum_mismatch.nxra");
+        let path = tmp_path("test_checksum_mismatch.nxr");
         cleanup(&path);
 
         {
@@ -102,7 +102,7 @@ mod tests {
     // Test 4 — free list round trip: freed pages are reused before growing
     #[test]
     fn test_free_list_round_trip() {
-        let path = tmp_path("test_free_list_round_trip.nxra");
+        let path = tmp_path("test_free_list_round_trip.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -130,7 +130,7 @@ mod tests {
     // Test 5 — footer persistence: page_count survives close/reopen
     #[test]
     fn test_footer_persistence() {
-        let path = tmp_path("test_footer_persistence.nxra");
+        let path = tmp_path("test_footer_persistence.nxr");
         cleanup(&path);
 
         {

@@ -8,7 +8,7 @@ A native graph database engine in a single file — embeddable, zero external de
 
 ## What it is
 
-- **Single-file storage** — all graph data lives in one `.nxra` file. No server process, no install.
+- **Single-file storage** — all graph data lives in one `.nxr` file. No server process, no install.
 - **Graph data model** — nodes and directed edges, each with arbitrary key-value properties and a label. No schemas, no tables.
 - **Embeddable library** — use as a Rust crate. The CLI binary is a thin wrapper.
 - **No heap allocation in the storage layer** — fixed-size pages, stack buffers, `zerocopy` for safe layout. Heap allocations are a deliberate exception at the public API boundary only.
@@ -20,7 +20,7 @@ A native graph database engine in a single file — embeddable, zero external de
 ```rust
 use nexora::graph::graphstore::graphstore::GraphStore;
 
-let mut db = GraphStore::create(Path::new("my_graph.nxra"))?;
+let mut db = GraphStore::create(Path::new("my_graph.nxr"))?;
 
 // Nodes
 let alice = db.insert_node("Person")?;
@@ -171,7 +171,7 @@ while let Some(prop) = db.next_property(&mut cursor)? {
 
 ## File format
 
-The `.nxra` file is a sequence of 4 KB pages. Every page begins with a `NexoraPageHeader` (type + next-page pointer + CRC32 checksum). Page 0 is the file header; page 1 is the footer (contains root pointers for each chain). All multi-byte integers use little-endian layout via `zerocopy`.
+The `.nxr` file is a sequence of 4 KB pages. Every page begins with a `NexoraPageHeader` (type + next-page pointer + CRC32 checksum). Page 0 is the file header; page 1 is the footer (contains root pointers for each chain). All multi-byte integers use little-endian layout via `zerocopy`.
 
 ```
 Page 0:  FileHeader  (magic, version)

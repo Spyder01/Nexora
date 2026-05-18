@@ -7,21 +7,81 @@ on:
     branches: [main]
 
 jobs:
+  # ── fast gate: format + static analysis ──────────────────────────────────
+  check:
+    name: Check & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Check (no features)
+        run: cargo check
+
+      - name: Check (lua)
+        run: cargo check --features lua
+
+      - name: Clippy (no features)
+        run: cargo clippy
+
+      - name: Clippy (lua)
+        run: cargo clippy --features lua
+
+  # ── tests on both platforms ───────────────────────────────────────────────
+  test:
+    name: Test / ${{ matrix.os }}
+    needs: check
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: test-${{ matrix.os }}
+
+      - name: Test (no features)
+        run: cargo test
+
+      - name: Test (lua)
+        run: cargo test --features lua
+
+  # ── release binaries ──────────────────────────────────────────────────────
   build:
+    name: Build / ${{ matrix.target }}
+    needs: test
+    timeout-minutes: 45
+
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: nexora
-            artifact_path: target/release/nexora
+            binary: nexora
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: nexora.exe
-            artifact_path: target/release/nexora.exe
+            binary: nexora.exe
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -32,16 +92,14 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}
-
-      - name: Run tests
-        run: cargo test
+          key: release-${{ matrix.target }}
 
       - name: Build release
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --features lua --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}-${{ github.sha }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          name: nexora-${{ matrix.target }}-${{ github.sha }}
+          path: target/${{ matrix.target }}/release/${{ matrix.binary }}
           retention-days: 90

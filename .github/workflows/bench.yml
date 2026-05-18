@@ -8,8 +8,9 @@ on:
 
 jobs:
   benchmark:
+    name: Criterion benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +27,8 @@ jobs:
           NEXORA_BENCH_MAX: "100000"
         run: cargo bench --bench graph_bench
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Criterion report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: criterion-report-${{ github.sha }}

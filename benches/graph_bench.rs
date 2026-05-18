@@ -77,7 +77,7 @@ fn sample_size_for(n: u64) -> usize {
 
 // --- insert_node: cost of one node write ---
 fn bench_insert_node(c: &mut Criterion) {
-    let path = tmp_path("bench_insert_node.nxra");
+    let path = tmp_path("bench_insert_node.nxr");
 
     c.bench_function("insert_node", |b| {
         b.iter_custom(|iters| {
@@ -105,7 +105,7 @@ fn bench_get_node_sequential(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_node_sequential");
 
     for n in bench_sizes() {
-        let path = tmp_path(&format!("bench_get_seq_{}.nxra", n));
+        let path = tmp_path(&format!("bench_get_seq_{}.nxr", n));
         populate(&path, n);
 
         group.sample_size(sample_size_for(n));
@@ -134,7 +134,7 @@ fn bench_get_node_random(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_node_random");
 
     for n in bench_sizes() {
-        let path = tmp_path(&format!("bench_get_rand_{}.nxra", n));
+        let path = tmp_path(&format!("bench_get_rand_{}.nxr", n));
         populate(&path, n);
 
         group.sample_size(sample_size_for(n));
@@ -162,7 +162,7 @@ fn bench_get_node_random(c: &mut Criterion) {
 
 // --- insert_edge: cost of one edge write between two fixed nodes ---
 fn bench_insert_edge(c: &mut Criterion) {
-    let path = tmp_path("bench_insert_edge.nxra");
+    let path = tmp_path("bench_insert_edge.nxr");
 
     c.bench_function("insert_edge", |b| {
         b.iter_custom(|iters| {
@@ -192,7 +192,7 @@ fn bench_outgoing_traversal(c: &mut Criterion) {
     let mut group = c.benchmark_group("outgoing_traversal");
 
     for &degree in &[10u64, 100, 500] {
-        let path = tmp_path(&format!("bench_traversal_{}.nxra", degree));
+        let path = tmp_path(&format!("bench_traversal_{}.nxr", degree));
         cleanup(&path);
 
         run_on_large_stack({
@@ -239,7 +239,7 @@ fn bench_bulk_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("bulk_insert_nodes");
 
     for n in bench_sizes() {
-        let path = tmp_path(&format!("bench_bulk_{}.nxra", n));
+        let path = tmp_path(&format!("bench_bulk_{}.nxr", n));
 
         group.sample_size(sample_size_for(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
@@ -272,7 +272,7 @@ fn bench_scan_all_nodes(c: &mut Criterion) {
     let mut group = c.benchmark_group("scan_all_nodes");
 
     for n in bench_sizes() {
-        let path = tmp_path(&format!("bench_scan_{}.nxra", n));
+        let path = tmp_path(&format!("bench_scan_{}.nxr", n));
         populate(&path, n);
 
         group.sample_size(sample_size_for(n));
@@ -306,7 +306,7 @@ fn bench_scan_all_nodes(c: &mut Criterion) {
 // src=0 (page 0), dst=MAX_RECORD_COUNT (page 1). Exercises the else branch
 // of update_edge_ptrs that reads and writes two separate node pages.
 fn bench_insert_edge_cross_page(c: &mut Criterion) {
-    let path = tmp_path("bench_insert_edge_cross_page.nxra");
+    let path = tmp_path("bench_insert_edge_cross_page.nxr");
 
     c.bench_function("insert_edge_cross_page", |b| {
         b.iter_custom(|iters| {
@@ -344,7 +344,7 @@ fn bench_bulk_insert_edges(c: &mut Criterion) {
     let mut group = c.benchmark_group("bulk_insert_edges");
 
     for n in bench_sizes() {
-        let path = tmp_path(&format!("bench_bulk_edges_{}.nxra", n));
+        let path = tmp_path(&format!("bench_bulk_edges_{}.nxr", n));
 
         group.sample_size(sample_size_for(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
@@ -390,7 +390,7 @@ fn bench_incoming_traversal(c: &mut Criterion) {
     let mut group = c.benchmark_group("incoming_traversal");
 
     for &degree in &[10u64, 100, 500] {
-        let path = tmp_path(&format!("bench_incoming_{}.nxra", degree));
+        let path = tmp_path(&format!("bench_incoming_{}.nxr", degree));
         cleanup(&path);
 
         run_on_large_stack({

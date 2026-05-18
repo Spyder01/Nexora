@@ -32,7 +32,7 @@ mod tests {
     // Test 1 — basic insert and get round trip
     #[test]
     fn test_insert_and_get_edge() {
-        let path = tmp_path("test_edge_insert_get.nxra");
+        let path = tmp_path("test_edge_insert_get.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -53,7 +53,7 @@ mod tests {
     // Test 2 — get a nonexistent edge
     #[test]
     fn test_get_nonexistent_edge() {
-        let path = tmp_path("test_edge_get_nonexistent.nxra");
+        let path = tmp_path("test_edge_get_nonexistent.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -68,7 +68,7 @@ mod tests {
     // Test 3 — insert edge referencing a nonexistent node
     #[test]
     fn test_insert_edge_missing_node() {
-        let path = tmp_path("test_edge_missing_node.nxra");
+        let path = tmp_path("test_edge_missing_node.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -83,7 +83,7 @@ mod tests {
     // Test 4 — delete an edge then get returns EdgeNotFound
     #[test]
     fn test_delete_edge() {
-        let path = tmp_path("test_edge_delete.nxra");
+        let path = tmp_path("test_edge_delete.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -101,7 +101,7 @@ mod tests {
     // Test 5 — delete a nonexistent edge
     #[test]
     fn test_delete_nonexistent_edge() {
-        let path = tmp_path("test_edge_delete_nonexistent.nxra");
+        let path = tmp_path("test_edge_delete_nonexistent.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -116,7 +116,7 @@ mod tests {
     // Test 6 — outgoing cursor visits all inserted edges from a node
     #[test]
     fn test_outgoing_edges() {
-        let path = tmp_path("test_edge_outgoing.nxra");
+        let path = tmp_path("test_edge_outgoing.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -144,7 +144,7 @@ mod tests {
     // Test 7 — incoming cursor visits all inserted edges to a node
     #[test]
     fn test_incoming_edges() {
-        let path = tmp_path("test_edge_incoming.nxra");
+        let path = tmp_path("test_edge_incoming.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -172,7 +172,7 @@ mod tests {
     // Test 8 — delete middle edge, chain remains intact
     #[test]
     fn test_delete_middle_edge_chain_intact() {
-        let path = tmp_path("test_edge_delete_middle.nxra");
+        let path = tmp_path("test_edge_delete_middle.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -204,7 +204,7 @@ mod tests {
     // Test 9 — edge count tracked in footer
     #[test]
     fn test_edge_count_tracking() {
-        let path = tmp_path("test_edge_count.nxra");
+        let path = tmp_path("test_edge_count.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -232,7 +232,7 @@ mod tests {
     // Test 10 — self-loop (src == dst)
     #[test]
     fn test_self_loop() {
-        let path = tmp_path("test_edge_self_loop.nxra");
+        let path = tmp_path("test_edge_self_loop.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 
@@ -251,7 +251,7 @@ mod tests {
     // Test 11 — edges survive close and reopen
     #[test]
     fn test_edge_persistence() {
-        let path = tmp_path("test_edge_persistence.nxra");
+        let path = tmp_path("test_edge_persistence.nxr");
         cleanup(&path);
 
         let edge_id = {
@@ -280,7 +280,7 @@ mod tests {
     // Test 12 — insert beyond MAX_EDGE_RECORD_COUNT triggers new page
     #[test]
     fn test_edge_page_overflow() {
-        let path = tmp_path("test_edge_page_overflow.nxra");
+        let path = tmp_path("test_edge_page_overflow.nxr");
         cleanup(&path);
         let mut manager = setup(&path);
 

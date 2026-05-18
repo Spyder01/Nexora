@@ -21,7 +21,7 @@ mod tests {
     // Test 1 — basic insert and get round trip
     #[test]
     fn test_insert_and_get_node() {
-        let path = tmp_path("test_node_insert_get.nxra");
+        let path = tmp_path("test_node_insert_get.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -39,7 +39,7 @@ mod tests {
     // Test 2 — get a node that was never inserted
     #[test]
     fn test_get_nonexistent_node() {
-        let path = tmp_path("test_node_get_nonexistent.nxra");
+        let path = tmp_path("test_node_get_nonexistent.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -55,7 +55,7 @@ mod tests {
     // Test 3 — delete a node, then get should return NodeNotFound
     #[test]
     fn test_delete_node() {
-        let path = tmp_path("test_node_delete.nxra");
+        let path = tmp_path("test_node_delete.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -73,7 +73,7 @@ mod tests {
     // Test 4 — delete a node that was never inserted
     #[test]
     fn test_delete_nonexistent_node() {
-        let path = tmp_path("test_node_delete_nonexistent.nxra");
+        let path = tmp_path("test_node_delete_nonexistent.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -89,7 +89,7 @@ mod tests {
     // Test 5 — insert multiple nodes, all are independently retrievable
     #[test]
     fn test_multiple_inserts() {
-        let path = tmp_path("test_node_multiple_inserts.nxra");
+        let path = tmp_path("test_node_multiple_inserts.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -110,7 +110,7 @@ mod tests {
     // Test 7 — inserting beyond MAX_RECORD_COUNT triggers new page allocation
     #[test]
     fn test_page_overflow() {
-        let path = tmp_path("test_node_page_overflow.nxra");
+        let path = tmp_path("test_node_page_overflow.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -131,7 +131,7 @@ mod tests {
     // Test 8 — footer node_count stays accurate across inserts and deletes
     #[test]
     fn test_node_count_tracking() {
-        let path = tmp_path("test_node_count_tracking.nxra");
+        let path = tmp_path("test_node_count_tracking.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();
@@ -159,7 +159,7 @@ mod tests {
     // Test 9 — nodes survive close and reopen
     #[test]
     fn test_node_persistence() {
-        let path = tmp_path("test_node_persistence.nxra");
+        let path = tmp_path("test_node_persistence.nxr");
         cleanup(&path);
 
         let node_id = {
@@ -187,7 +187,7 @@ mod tests {
     // Test 10 — delete all nodes on a page, then insert again
     #[test]
     fn test_delete_all_then_insert() {
-        let path = tmp_path("test_node_delete_all_insert.nxra");
+        let path = tmp_path("test_node_delete_all_insert.nxr");
         cleanup(&path);
 
         let store = RegularPageStore::create(&path).unwrap();

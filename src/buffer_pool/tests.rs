@@ -47,7 +47,7 @@ mod tests {
     // Test 1 — write then read returns correct data from cache
     #[test]
     fn test_write_read_roundtrip() {
-        let path = tmp_path("buf_test_write_read.nxra");
+        let path = tmp_path("buf_test_write_read.nxr");
         cleanup(&path);
         run(move || {
             let mut manager = create_buffered(&path);
@@ -71,7 +71,7 @@ mod tests {
     // Test 2 — dirty pages are flushed to disk on close
     #[test]
     fn test_dirty_flush_on_close() {
-        let path = tmp_path("buf_test_flush.nxra");
+        let path = tmp_path("buf_test_flush.nxr");
         cleanup(&path);
         run(move || {
             let page_id: PageId = {
@@ -98,7 +98,7 @@ mod tests {
     // Test 3 — cache miss on fresh open loads page from disk
     #[test]
     fn test_cache_miss_loads_from_disk() {
-        let path = tmp_path("buf_test_cache_miss.nxra");
+        let path = tmp_path("buf_test_cache_miss.nxr");
         cleanup(&path);
         run(move || {
             let page_id: PageId = {
@@ -125,7 +125,7 @@ mod tests {
     // Test 4 — multiple pages coexist in cache correctly
     #[test]
     fn test_multiple_pages_in_cache() {
-        let path = tmp_path("buf_test_multi.nxra");
+        let path = tmp_path("buf_test_multi.nxr");
         cleanup(&path);
         run(move || {
             let mut manager = create_buffered(&path);
@@ -154,7 +154,7 @@ mod tests {
     // Test 5 — overwrite same page, latest write wins
     #[test]
     fn test_overwrite_page() {
-        let path = tmp_path("buf_test_overwrite.nxra");
+        let path = tmp_path("buf_test_overwrite.nxr");
         cleanup(&path);
         run(move || {
             let mut manager = create_buffered(&path);
