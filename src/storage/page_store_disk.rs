@@ -1,5 +1,5 @@
 use core::result::Result;
-use std::os::unix::fs::FileExt;
+use std::io::{Read, Seek, SeekFrom, Write};
 use zerocopy::{FromBytes, IntoBytes};
 
 use crate::storage::page_store::PageStore;
@@ -45,7 +45,8 @@ impl RegularPageStore {
 
 impl PageStore for RegularPageStore {
     fn read_page(&mut self, page_id: PageId, buf: &mut [u8; PAGE_SIZE], verify_checksum: bool) -> Result<(), NexoraStorageError> {
-        self.file.read_exact_at(buf, page_id.byte_offset())?;
+        self.file.seek(SeekFrom::Start(page_id.byte_offset()))?;
+        self.file.read_exact(buf)?;
         let stored = Self::get_checksum(buf);
         if verify_checksum && !Self::verify_checksum(buf, stored) {
             return Err(NexoraStorageError::ChecksumMismatch(page_id.as_u64()));
@@ -60,13 +61,15 @@ impl PageStore for RegularPageStore {
             Self::stamp_checksum(&mut page);
         }
 
-        self.file.write_all_at(&page, page_id.byte_offset())?;
+        self.file.seek(SeekFrom::Start(page_id.byte_offset()))?;
+        self.file.write_all(&page)?;
         Ok(())
     }
 
     fn read_page_header_unchecked(&mut self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError> {
         let mut buf = [0u8; PAGE_HEADER_SIZE];
-        self.file.read_exact_at(&mut buf, page_id.byte_offset())?;
+        self.file.seek(SeekFrom::Start(page_id.byte_offset()))?;
+        self.file.read_exact(&mut buf)?;
         let header = NexoraPageHeader::ref_from_bytes(&buf)
             .map_err(|_| NexoraStorageError::CorruptPage(page_id.as_u64()))?;
         Ok(*header)

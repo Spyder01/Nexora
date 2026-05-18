@@ -4,4 +4,5 @@ pub mod buffer_pool;
 pub mod utils;
 pub mod index;
 pub mod api;
+pub mod lua;
 
