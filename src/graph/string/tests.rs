@@ -244,6 +244,100 @@ mod tests {
         cleanup(&path);
     }
 
+    // ── LabelStringStore tests ────────────────────────────────────────────────
+
+    // Test 14 — LabelStringStore basic insert and get round-trip
+    #[test]
+    fn test_label_string_insert_and_get() {
+        use crate::graph::string::label_string_store::LabelStringStore;
+
+        let path = tmp_path("test_lstr_insert_get.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+        let mut store = LabelStringStore::new(&mut manager);
+
+        let ptr = store.insert(b"Person").unwrap();
+
+        let mut out = [0u8; 64];
+        let len = store.get(ptr, &mut out).unwrap();
+        assert_eq!(&out[..len as usize], b"Person");
+
+        cleanup(&path);
+    }
+
+    // Test 15 — LabelStringStore and StringStore use independent page chains
+    #[test]
+    fn test_label_string_chain_independent_from_string_chain() {
+        use crate::graph::string::label_string_store::LabelStringStore;
+
+        let path = tmp_path("test_lstr_independent_chain.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+
+        {
+            let mut ss = StringStore::new(&mut manager);
+            ss.insert(b"property value").unwrap();
+        }
+        {
+            let mut ls = LabelStringStore::new(&mut manager);
+            ls.insert(b"Person").unwrap();
+        }
+
+        let string_chain  = manager.footer.first_string_page.get();
+        let label_chain   = manager.footer.first_label_string_page.get();
+        assert_ne!(string_chain, label_chain, "label and string chains must be independent");
+
+        cleanup(&path);
+    }
+
+    // Test 16 — LabelStringStore multiple strings all readable
+    #[test]
+    fn test_label_string_multiple() {
+        use crate::graph::string::label_string_store::LabelStringStore;
+
+        let path = tmp_path("test_lstr_multiple.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+        let mut store = LabelStringStore::new(&mut manager);
+
+        let labels: &[&[u8]] = &[b"Person", b"Movie", b"ACTED_IN", b"KNOWS"];
+        let ptrs: Vec<_> = labels.iter().map(|l| store.insert(l).unwrap()).collect();
+
+        for (ptr, expected) in ptrs.iter().zip(labels.iter()) {
+            let mut out = [0u8; 64];
+            let len = store.get(*ptr, &mut out).unwrap();
+            assert_eq!(&out[..len as usize], *expected);
+        }
+
+        cleanup(&path);
+    }
+
+    // Test 17 — LabelStringStore survives close and reopen
+    #[test]
+    fn test_label_string_persistence() {
+        use crate::graph::string::label_string_store::LabelStringStore;
+
+        let path = tmp_path("test_lstr_persistence.nxra");
+        cleanup(&path);
+
+        let ptr = {
+            let mut manager = setup(&path);
+            let ptr = LabelStringStore::new(&mut manager).insert(b"PersistedLabel").unwrap();
+            manager.close().unwrap();
+            ptr
+        };
+
+        {
+            let store = RegularPageStore::open(&path).unwrap();
+            let mut manager = StorageManager::from_page_store(store).unwrap();
+            let mut out = [0u8; 32];
+            let len = LabelStringStore::new(&mut manager).get(ptr, &mut out).unwrap();
+            assert_eq!(&out[..len as usize], b"PersistedLabel");
+        }
+
+        cleanup(&path);
+    }
+
     // Test 12 — enough strings to fill one page, spill to a second
     #[test]
     fn test_page_overflow_to_new_page() {

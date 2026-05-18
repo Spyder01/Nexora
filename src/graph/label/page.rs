@@ -50,6 +50,7 @@ const LABEL_RECORD_PADDING_SIZE: usize = LABEL_RECORD_SIZE - 8 - 8;
 pub struct LabelRecord {
     pub label_id: U64,
     pub string_address: PackedPtr,
+    //pub label_length: u8
 
     _pad: [u8; LABEL_RECORD_PADDING_SIZE],
 }

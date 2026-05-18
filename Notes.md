@@ -107,3 +107,4 @@ _pad:             u8    — 1 byte    (offset 39)
 ## TODO
 - Implement MmapPageStore using the `mmap2` Rust crate. Pre-allocate a large virtual address space upfront to avoid remapping on every page allocation. Use MAP_SHARED so writes go back to the file. Call msync() on flush/close for crash safety.
 - Optimize `insert_node` page traversal: read only `NexoraPageHeader + GraphNodePageHeader` (80 bytes) first to check free slots via zone map and bitset, then read the full 4KB page only if a free slot exists. Avoids 4KB reads for full pages during chain traversal. Use a new `read_node_page_header` method alongside the existing `read_page_header_unchecked`. Only meaningful when the chain contains many full pages.
+- Add label index: deduplicate label strings (inline bytes in LabelRecord, length-filter scan), add `next_same_label: PackedPtr` to GraphNodeRecord, store head_ptr per label, wire insert_node/delete_node to maintain chain, add nodes_by_label_cursor API.

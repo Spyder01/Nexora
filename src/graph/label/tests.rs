@@ -123,7 +123,111 @@ mod tests {
         cleanup(&path);
     }
 
-    // Test 6 — insert enough labels to overflow onto a second page
+    // Test 6 — inserting the same string twice returns the same label_id
+    #[test]
+    fn test_dedup_same_string_same_id() {
+        let path = tmp_path("test_label_dedup_same.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+        let mut store = LabelStore::new(&mut manager);
+
+        let id0 = store.insert_label(b"Person").unwrap();
+        let id1 = store.insert_label(b"Person").unwrap();
+        assert_eq!(id0, id1);
+
+        cleanup(&path);
+    }
+
+    // Test 7 — inserting the same string many times does not increment the count
+    #[test]
+    fn test_dedup_count_does_not_grow() {
+        let path = tmp_path("test_label_dedup_count.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+        let mut store = LabelStore::new(&mut manager);
+
+        let id = store.insert_label(b"Person").unwrap();
+        for _ in 0..9 {
+            assert_eq!(store.insert_label(b"Person").unwrap(), id);
+        }
+        assert_eq!(manager.footer.label_pages_count.get(), 1);
+
+        cleanup(&path);
+    }
+
+    // Test 8 — different strings get different label_ids
+    #[test]
+    fn test_dedup_different_strings_different_ids() {
+        let path = tmp_path("test_label_dedup_diff.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+        let mut store = LabelStore::new(&mut manager);
+
+        let id0 = store.insert_label(b"Person").unwrap();
+        let id1 = store.insert_label(b"Movie").unwrap();
+        assert_ne!(id0, id1);
+
+        cleanup(&path);
+    }
+
+    // Test 9 — dedup is case-sensitive
+    #[test]
+    fn test_dedup_case_sensitive() {
+        let path = tmp_path("test_label_dedup_case.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+        let mut store = LabelStore::new(&mut manager);
+
+        let id_lower = store.insert_label(b"person").unwrap();
+        let id_upper = store.insert_label(b"Person").unwrap();
+        assert_ne!(id_lower, id_upper);
+
+        cleanup(&path);
+    }
+
+    // Test 10 — dedup works when the duplicate is on a second label page
+    #[test]
+    fn test_dedup_across_page_boundary() {
+        let path = tmp_path("test_label_dedup_overflow.nxra");
+        cleanup(&path);
+        let mut manager = setup(&path);
+        let mut store = LabelStore::new(&mut manager);
+
+        // Fill beyond one page with unique labels, then re-insert one from the first page.
+        let count = MAX_PAGE_LABEL_COUNT as usize + 3;
+        for i in 0..count {
+            store.insert_label(format!("Label{}", i).as_bytes()).unwrap();
+        }
+        let id_again = store.insert_label(b"Label0").unwrap();
+        assert_eq!(id_again, 0);
+
+        cleanup(&path);
+    }
+
+    // Test 11 — dedup survives close and reopen
+    #[test]
+    fn test_dedup_persistence() {
+        let path = tmp_path("test_label_dedup_persist.nxra");
+        cleanup(&path);
+
+        let id_first = {
+            let mut manager = setup(&path);
+            let id = LabelStore::new(&mut manager).insert_label(b"Person").unwrap();
+            manager.close().unwrap();
+            id
+        };
+
+        {
+            let store = RegularPageStore::open(&path).unwrap();
+            let mut manager = StorageManager::from_page_store(store).unwrap();
+            let id_again = LabelStore::new(&mut manager).insert_label(b"Person").unwrap();
+            assert_eq!(id_first, id_again);
+        }
+
+        cleanup(&path);
+    }
+
+    // Test 12 — insert enough labels to overflow onto a second page
     #[test]
     fn test_label_page_overflow() {
         let path = tmp_path("test_label_page_overflow.nxra");

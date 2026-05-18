@@ -17,7 +17,8 @@
       "Bash(./bench.sh 100000 *)",
       "Bash(gh api *)",
       "Bash(curl -s https://raw.githubusercontent.com/tursodatabase/turso/main/core/storage/buffer_pool.rs)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch"
     ]
   }
 }

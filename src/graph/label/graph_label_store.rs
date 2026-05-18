@@ -8,8 +8,9 @@ use crate::storage::constants::{PAGE_SIZE, SENTINEL_PAGE_ID};
 use crate::storage::error::NexoraStorageError;
 
 use crate::graph::label::page::GraphLabelPage;
+use crate::graph::label::constants::MAX_LABEL_LENGTH;
 use crate::graph::label::error::NexoraGraphLabelError;
-use crate::graph::string::graph_string_store::StringStore;
+use crate::graph::string::label_string_store::LabelStringStore;
 
 pub struct LabelStore<'a, S: PageStore> {
     storage: &'a mut StorageManager<S>,
@@ -21,8 +22,12 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
     }
 
     pub fn insert_label(&mut self, data: &[u8]) -> Result<u32, NexoraGraphLabelError> {
+        if let Some(existing_id) = self.find_duplicate(data)? {
+            return Ok(existing_id);
+        }
+
         let ptr = {
-            let mut string_store = StringStore::new(self.storage);
+            let mut string_store = LabelStringStore::new(self.storage);
             string_store.insert(data)?
         };
 
@@ -35,11 +40,41 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
         Ok(label_id)
     }
 
+    fn find_duplicate(&mut self, data: &[u8]) -> Result<Option<u32>, NexoraGraphLabelError> {
+        let mut page_id_val = self.storage.footer.first_label_page.get();
+        let mut buf = [0u8; MAX_LABEL_LENGTH];
+
+        while page_id_val != SENTINEL_PAGE_ID {
+            let page_id = PageId(page_id_val);
+            let mut page_buf = [0u8; PAGE_SIZE];
+            self.storage.store.read_page(page_id, &mut page_buf, true)?;
+            let page = *GraphLabelPage::ref_from_bytes(&page_buf[..])
+                .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
+
+            let count = page.label_page_header.label_count.get() as usize;
+            for i in 0..count {
+                let record = page.label_records[i];
+                let len = match LabelStringStore::new(self.storage).get(record.string_address, &mut buf) {
+                    Ok(n)                                                => n,
+                    Err(crate::graph::string::error::NexoraGraphStringError::BufferTooSmall) => continue,
+                    Err(e) => return Err(NexoraGraphLabelError::StringError(e)),
+                };
+                if len as usize == data.len() && &buf[..len as usize] == data {
+                    return Ok(Some(record.label_id.get() as u32));
+                }
+            }
+
+            page_id_val = page.page_header.next_page_id.get();
+        }
+
+        Ok(None)
+    }
+
     pub fn get_label(&mut self, label_id: u32, out: &mut [u8]) -> Result<u16, NexoraGraphLabelError> {
         let ptr = self.find_label_ptr(label_id)?;
 
         let len = {
-            let mut string_store = StringStore::new(self.storage);
+            let mut string_store = LabelStringStore::new(self.storage);
             string_store.get(ptr, out)?
         };
 

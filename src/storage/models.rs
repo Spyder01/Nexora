@@ -32,6 +32,7 @@ pub enum PageType {
   Free     = 7,
   String   = 8,
   Property = 9,
+  LabelString = 10,
 }
 
 impl TryFrom<u8> for PageType {
@@ -49,6 +50,7 @@ impl TryFrom<u8> for PageType {
           7 => Ok(PageType::Free),
           8 => Ok(PageType::String),
           9 => Ok(PageType::Property),
+          10 => Ok(PageType::LabelString),
           unknown => Err(unknown),
       }
   }
@@ -115,7 +117,7 @@ pub const INITIAL_HEADER: NexoraHeader = NexoraHeader {
     _pad:           [0u8; PAGE_SIZE - PAGE_HEADER_SIZE - 4 - 4 - 8 - 4],
 };
 
-const NEXORA_FOOTER_PAGE_PADDING: usize = PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8;
+const NEXORA_FOOTER_PAGE_PADDING: usize = PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8;
 
 
 #[derive(Debug, FromBytes, IntoBytes, Immutable, KnownLayout, Copy, Clone)]
@@ -143,9 +145,11 @@ pub struct NexoraFooter {
     pub first_free_page:             U64,
 
     pub first_string_page:           U64,
+    pub last_string_page:            U64,
 
     pub label_pages_count:           U64,
     pub first_label_page:            U64,
+    pub first_label_string_page:     U64,
 
     pub first_property_page:         U64,
 
@@ -183,8 +187,10 @@ pub const INITIAL_FOOTER: NexoraFooter = NexoraFooter {
     free_pages_count:            U64::new(0),
     first_free_page:             U64::new(SENTINEL_PAGE_ID),
     first_string_page:           U64::new(SENTINEL_PAGE_ID),
+    last_string_page:            U64::new(SENTINEL_PAGE_ID),
     label_pages_count:           U64::new(0),
     first_label_page:            U64::new(SENTINEL_PAGE_ID),
+    first_label_string_page:     U64::new(SENTINEL_PAGE_ID),
     first_property_page:         U64::new(SENTINEL_PAGE_ID),
     page_count:                  U64::new(2), // pages 0 (header) and 1 (footer) already used
                                               
