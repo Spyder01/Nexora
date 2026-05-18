@@ -537,4 +537,108 @@ mod tests {
             cleanup(&path);
         });
     }
+
+    // Test 26 — for_each_with_label visits only nodes with the given label
+    #[test]
+    fn test_lua_for_each_with_label_basic() {
+        let path = tmp_path("test_lua_label_basic.nxr");
+        cleanup(&path);
+        run(move || {
+            let (lua, _shared) = setup_lua(&path);
+            lua.load(r#"
+                db:insert_node("Person")
+                db:insert_node("Person")
+                db:insert_node("City")
+                db:insert_node("Person")
+
+                local count = 0
+                db:for_each_with_label("Person", function(node)
+                    assert(node.label == "Person", "unexpected label: " .. tostring(node.label))
+                    count = count + 1
+                end)
+                assert(count == 3, "expected 3 Person nodes, got " .. count)
+
+                local city_count = 0
+                db:for_each_with_label("City", function(node)
+                    city_count = city_count + 1
+                end)
+                assert(city_count == 1, "expected 1 City node, got " .. city_count)
+            "#).exec().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 27 — for_each_with_label with a nonexistent label visits nothing
+    #[test]
+    fn test_lua_for_each_with_label_nonexistent() {
+        let path = tmp_path("test_lua_label_nonexistent.nxr");
+        cleanup(&path);
+        run(move || {
+            let (lua, _shared) = setup_lua(&path);
+            lua.load(r#"
+                db:insert_node("Person")
+                db:insert_node("City")
+
+                local count = 0
+                db:for_each_with_label("Ghost", function(node)
+                    count = count + 1
+                end)
+                assert(count == 0, "expected 0 Ghost nodes, got " .. count)
+            "#).exec().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 28 — returning false from the callback stops iteration early
+    #[test]
+    fn test_lua_for_each_with_label_early_stop() {
+        let path = tmp_path("test_lua_label_stop.nxr");
+        cleanup(&path);
+        run(move || {
+            let (lua, _shared) = setup_lua(&path);
+            lua.load(r#"
+                db:insert_node("Person")
+                db:insert_node("Person")
+                db:insert_node("Person")
+
+                local count = 0
+                db:for_each_with_label("Person", function(node)
+                    count = count + 1
+                    return false
+                end)
+                assert(count == 1, "expected early stop after 1, got " .. count)
+            "#).exec().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 29 — node ids returned by for_each_with_label match inserted ids
+    #[test]
+    fn test_lua_for_each_with_label_node_ids() {
+        let path = tmp_path("test_lua_label_ids.nxr");
+        cleanup(&path);
+        run(move || {
+            let (lua, _shared) = setup_lua(&path);
+            lua.load(r#"
+                local p1 = db:insert_node("Person")
+                local p2 = db:insert_node("Person")
+                db:insert_node("City")
+
+                local ids = {}
+                db:for_each_with_label("Person", function(node)
+                    ids[#ids + 1] = node.id
+                end)
+
+                assert(#ids == 2, "expected 2 ids, got " .. #ids)
+                local found_p1, found_p2 = false, false
+                for _, id in ipairs(ids) do
+                    if id == p1 then found_p1 = true end
+                    if id == p2 then found_p2 = true end
+                end
+                assert(found_p1, "p1 not found")
+                assert(found_p2, "p2 not found")
+            "#).exec().unwrap();
+            cleanup(&path);
+        });
+    }
 }

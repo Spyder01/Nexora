@@ -680,6 +680,126 @@ fn bench_trav_shortest_path(c: &mut Criterion) {
     group.finish();
 }
 
+// --- insert_node_unique_labels: each insert gets a distinct label ---
+// Exercises the label-creation path on every call: find_label_id returns None,
+// a new string is written, a new LabelRecord is appended.
+// Compare against bulk_insert_nodes (all "Person") to see dedup overhead.
+fn bench_insert_node_unique_labels(c: &mut Criterion) {
+    let mut group = c.benchmark_group("insert_node_unique_labels");
+
+    for n in bench_sizes() {
+        let path = tmp_path(&format!("bench_unique_labels_{}.nxr", n));
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut total = Duration::ZERO;
+                    for _ in 0..iters {
+                        cleanup(&path);
+                        let mut gs = GraphStore::create(&path).unwrap();
+                        let start = Instant::now();
+                        for i in 0..n {
+                            // Short label to keep format overhead negligible.
+                            let label = format!("L{}", i);
+                            black_box(gs.insert_node(&label).unwrap());
+                        }
+                        total += start.elapsed();
+                        gs.close().unwrap();
+                    }
+                    cleanup(&path);
+                    total
+                })
+            });
+        });
+    }
+
+    group.finish();
+}
+
+// --- for_each_with_label (all match): every node has the target label ---
+// Measures the best-case scan throughput: every node read triggers the callback.
+fn bench_for_each_with_label_all_match(c: &mut Criterion) {
+    let mut group = c.benchmark_group("for_each_with_label_all_match");
+
+    for n in traversal_sizes() {
+        let path = tmp_path(&format!("bench_label_all_{}.nxr", n));
+        populate(&path, n); // all "Person"
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        Traversal::new(&mut gs)
+                            .for_each_with_label("Person", |node| {
+                                black_box(node);
+                                Visit::Continue
+                            })
+                            .unwrap();
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
+// --- for_each_with_label (sparse): N nodes, only 1 has the target label ---
+// The single "Target" node is inserted last so the scan must read all N nodes
+// before finding it. Worst case: measures per-node overhead for non-matches.
+fn bench_for_each_with_label_sparse(c: &mut Criterion) {
+    let mut group = c.benchmark_group("for_each_with_label_sparse");
+
+    for n in traversal_sizes() {
+        let path = tmp_path(&format!("bench_label_sparse_{}.nxr", n));
+        cleanup(&path);
+        {
+            let path = path.clone();
+            run_on_large_stack(move || {
+                let mut gs = GraphStore::create(&path).unwrap();
+                for _ in 0..n {
+                    gs.insert_node("Person").unwrap();
+                }
+                gs.insert_node("Target").unwrap();
+                gs.close().unwrap();
+            });
+        }
+
+        group.sample_size(sample_size_for(n));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter_custom(|iters| {
+                let path = path.clone();
+                run_on_large_stack(move || {
+                    let mut gs = GraphStore::open(&path).unwrap();
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        Traversal::new(&mut gs)
+                            .for_each_with_label("Target", |node| {
+                                black_box(node);
+                                Visit::Continue
+                            })
+                            .unwrap();
+                    }
+                    start.elapsed()
+                })
+            });
+        });
+
+        cleanup(&path);
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_insert_node,
@@ -698,5 +818,8 @@ criterion_group!(
     bench_trav_has_path_reachable,
     bench_trav_has_path_unreachable,
     bench_trav_shortest_path,
+    bench_insert_node_unique_labels,
+    bench_for_each_with_label_all_match,
+    bench_for_each_with_label_sparse,
 );
 criterion_main!(benches);

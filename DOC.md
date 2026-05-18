@@ -14,6 +14,7 @@
 6. [Traversal](#6-traversal)
 7. [Scanning the full graph](#7-scanning-the-full-graph)
 8. [Multi-hop traversal patterns](#8-multi-hop-traversal-patterns)
+   - [for_each_with_label](#for_each_with_label)
 9. [Persisting data](#9-persisting-data)
 10. [File format](#10-file-format)
 
@@ -368,12 +369,32 @@ else
 end
 ```
 
-### Follow a specific edge label (manual pattern)
+### for_each_with_label
 
-When you need to filter by label during traversal, use `for_each_outgoing` with a queue yourself:
+Visit every node whose label matches a given string. The scan is O(N) in the number of nodes — it reads the whole node store and compares label IDs, skipping the string fetch for non-matching lengths. Return `false` to stop early.
 
 ```lua
-function follow(start, label, max_depth)
+-- Print all Person nodes
+db:for_each_with_label("Person", function(node)
+    print(node.id, node.label)
+end)
+
+-- Collect the first 10 Person IDs
+local ids = {}
+db:for_each_with_label("Person", function(node)
+    ids[#ids + 1] = node.id
+    if #ids >= 10 then return false end
+end)
+```
+
+Each `node` table has: `id`, `label`.
+
+### Follow a specific edge label (manual pattern)
+
+When you need to filter by **edge** label during a multi-hop traversal, use `for_each_outgoing` with a queue:
+
+```lua
+function follow(start, edge_label, max_depth)
     local visited = {}
     local queue   = {{id=start, depth=0}}
     visited[start] = true
@@ -385,7 +406,7 @@ function follow(start, label, max_depth)
 
         if item.depth < max_depth then
             db:for_each_outgoing(item.id, function(edge)
-                if edge.label == label and not visited[edge.dst] then
+                if edge.label == edge_label and not visited[edge.dst] then
                     visited[edge.dst] = true
                     table.insert(queue, {id=edge.dst, depth=item.depth+1})
                 end
@@ -397,7 +418,7 @@ end
 follow(0, "KNOWS", 2)
 ```
 
-> **Note:** The built-in `bfs`/`dfs` traverse all edge labels. Use the manual pattern above when you need to filter by label.
+> **Note:** `bfs`/`dfs` traverse all edge labels. Use `for_each_with_label` to filter by **node** label; use the manual pattern above to filter by **edge** label during traversal.
 
 ---
 

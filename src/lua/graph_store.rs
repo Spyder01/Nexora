@@ -294,6 +294,27 @@ impl mlua::UserData for LuaGraphStore {
             }
         });
 
+        // for_each_with_label(label, fn(node)) — visits every node whose label matches.
+        // Return false from the callback to stop early.
+        methods.add_method_mut("for_each_with_label", |lua, this, (label, f): (String, mlua::Function)| {
+            let mut cursor = this.0.borrow_mut().all_nodes_cursor().map_err(mlua::Error::external)?;
+            loop {
+                let node = this.0.borrow_mut().next_node(&mut cursor).map_err(mlua::Error::external)?;
+                match node {
+                    None => break,
+                    Some(n) if n.label == label => {
+                        let t = make_node_table(lua, &n)?;
+                        let cont: mlua::Value = f.call(t)?;
+                        if matches!(cont, mlua::Value::Boolean(false)) {
+                            break;
+                        }
+                    }
+                    Some(_) => {}
+                }
+            }
+            Ok(())
+        });
+
         // --- Property iteration ---
 
         methods.add_method_mut("node_properties_cursor", |_, this, node_id: u64| {

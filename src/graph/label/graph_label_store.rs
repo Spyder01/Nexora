@@ -22,7 +22,7 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
     }
 
     pub fn insert_label(&mut self, data: &[u8]) -> Result<u32, NexoraGraphLabelError> {
-        if let Some(existing_id) = self.find_duplicate(data)? {
+        if let Some(existing_id) = self.find_label_id(data)? {
             return Ok(existing_id);
         }
 
@@ -32,7 +32,7 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
         };
 
         let label_id = self.storage.footer.label_pages_count.get() as u32;
-        self.insert_into_page(label_id, ptr)?;
+        self.insert_into_page(label_id, ptr, data.len() as u8)?;
 
         self.storage.footer.label_pages_count = U64::new(label_id as u64 + 1);
         self.storage.mark_footer_dirty();
@@ -40,7 +40,7 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
         Ok(label_id)
     }
 
-    fn find_duplicate(&mut self, data: &[u8]) -> Result<Option<u32>, NexoraGraphLabelError> {
+    pub fn find_label_id(&mut self, data: &[u8]) -> Result<Option<u32>, NexoraGraphLabelError> {
         let mut page_id_val = self.storage.footer.first_label_page.get();
         let mut buf = [0u8; MAX_LABEL_LENGTH];
 
@@ -52,14 +52,19 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
                 .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
 
             let count = page.label_page_header.label_count.get() as usize;
+            let data_len = data.len();
             for i in 0..count {
                 let record = page.label_records[i];
+                // Fast path: skip string fetch if lengths differ.
+                if record.label_length as usize != data_len {
+                    continue;
+                }
                 let len = match LabelStringStore::new(self.storage).get(record.string_address, &mut buf) {
                     Ok(n)                                                => n,
                     Err(crate::graph::string::error::NexoraGraphStringError::BufferTooSmall) => continue,
                     Err(e) => return Err(NexoraGraphLabelError::StringError(e)),
                 };
-                if len as usize == data.len() && &buf[..len as usize] == data {
+                if len as usize == data_len && &buf[..data_len] == data {
                     return Ok(Some(record.label_id.get() as u32));
                 }
             }
@@ -105,6 +110,7 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
         &mut self,
         label_id: u32,
         ptr: crate::graph::record::types::PackedPtr,
+        label_length: u8,
     ) -> Result<(), NexoraGraphLabelError> {
         let mut page_id_val = self.storage.footer.first_label_page.get();
 
@@ -116,7 +122,7 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
                 .map_err(|_| NexoraStorageError::CorruptPage(page_id_val))?;
 
             if !page.label_page_header.is_full() {
-                page.insert_entry(label_id, ptr)?;
+                page.insert_entry(label_id, ptr, label_length)?;
                 self.storage.store.write_page(page_id, page.as_bytes().try_into().expect("GraphLabelPage is PAGE_SIZE"), true)?;
                 return Ok(());
             }
@@ -124,13 +130,14 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
             page_id_val = page.page_header.next_page_id.get();
         }
 
-        self.insert_into_new_page(label_id, ptr)
+        self.insert_into_new_page(label_id, ptr, label_length)
     }
 
     fn insert_into_new_page(
         &mut self,
         label_id: u32,
         ptr: crate::graph::record::types::PackedPtr,
+        label_length: u8,
     ) -> Result<(), NexoraGraphLabelError> {
         let new_page_id = self.storage.allocate_page()?;
         let old_first   = self.storage.footer.first_label_page.get();
@@ -138,7 +145,7 @@ impl<'a, S: PageStore> LabelStore<'a, S> {
         let mut page = GraphLabelPage::init(new_page_id.as_u64(), label_id);
         page.page_header.next_page_id = U64::new(old_first);
 
-        page.insert_entry(label_id, ptr)?;
+        page.insert_entry(label_id, ptr, label_length)?;
         self.storage.store.write_page(new_page_id, page.as_bytes().try_into().expect("GraphLabelPage is PAGE_SIZE"), true)?;
 
         self.storage.footer.first_label_page = U64::new(new_page_id.as_u64());

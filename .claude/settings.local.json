@@ -22,7 +22,9 @@
       "WebFetch(domain:arxiv.org)",
       "Bash(xargs sed -i '' 's/\\\\.nxra/.nxr/g')",
       "Bash(NEXORA_BENCH_MAX=10 cargo bench --bench graph_bench -- trav)",
-      "Bash(NEXORA_BENCH_MAX=10 cargo bench *)"
+      "Bash(NEXORA_BENCH_MAX=10 cargo bench *)",
+      "Bash(NEXORA_BENCH_MAX=100 cargo bench *)",
+      "Bash(NEXORA_BENCH_MAX=1000 cargo bench *)"
     ]
   }
 }

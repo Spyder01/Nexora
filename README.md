@@ -2,7 +2,7 @@
 
 A native graph database engine in a single file — embeddable, zero external dependencies, analogous to SQLite but built around a graph data model rather than relational tables.
 
-> **Status:** Early development. Core storage, graph primitives, and traversal APIs are functional. WAL, query language, and Lua scripting are in progress.
+> **Status:** Early development. Core storage, graph primitives, traversal APIs, and Lua scripting are functional. WAL and a query language are planned.
 
 **[→ Full user documentation](DOC.md)**
 
@@ -150,6 +150,28 @@ while let Some(node) = db.next_node(&mut cursor)? { ... }
 
 let mut cursor = db.all_edges_cursor()?;
 while let Some(edge) = db.next_edge(&mut cursor)? { ... }
+
+// All nodes with a given label (scan-based, callback returns false to stop early)
+db.for_each_with_label("Person", |node| {
+    println!("{}", node.id);
+    true // return false to stop
+})?;
+```
+
+Higher-level algorithms (BFS, DFS, shortest path, has_path) are available through the `TraverseApi` trait:
+
+```rust
+use nexora::api::traversal::{Traversal, TraverseApi, Visit};
+
+Traversal::new(&mut db).bfs(start, max_depth, |node, depth| {
+    println!("{}: {}", depth, node.label);
+    Visit::Continue
+})?;
+
+Traversal::new(&mut db).for_each_with_label("Person", |node| {
+    println!("{}", node.id);
+    Visit::Continue
+})?;
 ```
 
 ### Properties

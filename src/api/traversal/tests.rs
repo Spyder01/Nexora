@@ -572,4 +572,104 @@ mod tests {
             cleanup(&path);
         });
     }
+
+    // ── for_each_with_label ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_for_each_with_label_visits_matching_nodes() {
+        let path = tmp_path("test_trav_label_all.nxr");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            let a = gs.insert_node("Person").unwrap();
+            let b = gs.insert_node("Person").unwrap();
+            let c = gs.insert_node("Person").unwrap();
+            gs.insert_node("City").unwrap();
+            gs.insert_node("City").unwrap();
+
+            let mut ids = vec![];
+            Traversal::new(&mut gs)
+                .for_each_with_label("Person", |node| {
+                    ids.push(node.id);
+                    Visit::Continue
+                })
+                .unwrap();
+
+            assert_eq!(ids.len(), 3);
+            assert!(ids.contains(&a));
+            assert!(ids.contains(&b));
+            assert!(ids.contains(&c));
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    #[test]
+    fn test_for_each_with_label_nonexistent_label() {
+        let path = tmp_path("test_trav_label_none.nxr");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            gs.insert_node("Person").unwrap();
+            gs.insert_node("City").unwrap();
+
+            let mut count = 0;
+            Traversal::new(&mut gs)
+                .for_each_with_label("Ghost", |_node| {
+                    count += 1;
+                    Visit::Continue
+                })
+                .unwrap();
+
+            assert_eq!(count, 0);
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    #[test]
+    fn test_for_each_with_label_early_stop() {
+        let path = tmp_path("test_trav_label_stop.nxr");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            gs.insert_node("Person").unwrap();
+            gs.insert_node("Person").unwrap();
+            gs.insert_node("Person").unwrap();
+
+            let mut count = 0;
+            Traversal::new(&mut gs)
+                .for_each_with_label("Person", |_node| {
+                    count += 1;
+                    Visit::Stop
+                })
+                .unwrap();
+
+            assert_eq!(count, 1);
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    #[test]
+    fn test_for_each_with_label_returns_correct_label() {
+        let path = tmp_path("test_trav_label_correct.nxr");
+        cleanup(&path);
+        run(move || {
+            let mut gs = GraphStore::create(&path).unwrap();
+            gs.insert_node("Person").unwrap();
+            gs.insert_node("City").unwrap();
+            gs.insert_node("Person").unwrap();
+
+            Traversal::new(&mut gs)
+                .for_each_with_label("Person", |node| {
+                    assert_eq!(node.label, "Person");
+                    Visit::Continue
+                })
+                .unwrap();
+
+            gs.close().unwrap();
+            cleanup(&path);
+        });
+    }
 }

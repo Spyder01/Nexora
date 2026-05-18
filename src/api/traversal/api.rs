@@ -27,4 +27,8 @@ pub trait TraverseApi {
     fn has_path(&mut self, src: u64, dst: u64) -> Result<bool, Self::Error>;
 
     fn shortest_path(&mut self, src: u64, dst: u64) -> Result<Option<Vec<u64>>, Self::Error>;
+
+    fn for_each_with_label<F>(&mut self, label: &str, f: F) -> Result<(), Self::Error>
+    where
+        F: FnMut(Node) -> Visit;
 }

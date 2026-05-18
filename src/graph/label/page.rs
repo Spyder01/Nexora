@@ -43,14 +43,14 @@ impl LabelPageHeader {
     }
 }
 
-const LABEL_RECORD_PADDING_SIZE: usize = LABEL_RECORD_SIZE - 8 - 8;
+const LABEL_RECORD_PADDING_SIZE: usize = LABEL_RECORD_SIZE - 8 - 8 - 1;
 
 #[derive(Debug, Copy, Clone, FromBytes, IntoBytes, Immutable, KnownLayout)]
 #[repr(C)]
 pub struct LabelRecord {
-    pub label_id: U64,
+    pub label_id:       U64,
     pub string_address: PackedPtr,
-    //pub label_length: u8
+    pub label_length:   u8,
 
     _pad: [u8; LABEL_RECORD_PADDING_SIZE],
 }
@@ -89,13 +89,14 @@ impl GraphLabelPage {
             label_records: [LabelRecord {
                 label_id:       U64::new(0),
                 string_address: PackedPtr::NULL,
+                label_length:   0,
                 _pad:           [0u8; LABEL_RECORD_PADDING_SIZE],
             }; MAX_PAGE_LABEL_COUNT as usize],
             _pad: [0u8; LABEL_GRAPH_PAGE_PADDING],
         }
     }
 
-    pub fn insert_entry(&mut self, label_id: u32, ptr: PackedPtr) -> Result<(), NexoraGraphLabelError> {
+    pub fn insert_entry(&mut self, label_id: u32, ptr: PackedPtr, label_length: u8) -> Result<(), NexoraGraphLabelError> {
         if self.label_page_header.is_full() {
             return Err(NexoraGraphLabelError::PageFull);
         }
@@ -103,6 +104,7 @@ impl GraphLabelPage {
         self.label_records[slot] = LabelRecord {
             label_id:       U64::new(label_id as u64),
             string_address: ptr,
+            label_length:   label_length,
             _pad:           [0u8; LABEL_RECORD_PADDING_SIZE],
         };
         self.label_page_header.label_count = U16::new(slot as u16 + 1);

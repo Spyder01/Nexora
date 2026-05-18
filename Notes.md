@@ -104,6 +104,9 @@ _pad:             u8    — 1 byte    (offset 39)
 ## Future Cleanup
 - `close()` on `PageStore` trait is a design smell — lifecycle is not an I/O primitive concern. Options: (1) second trait bound `S: PageStore + Closeable`; (2) implement `Drop` on `BufferStore` to flush dirty frames — guarantees flush even if caller forgets `close()`, but `Drop` cannot return `Result` so I/O errors are silently swallowed. Refactor when design hardens.
 
+## Lua Bindings
+- All high-level traversal bindings (bfs, dfs, for_each_outgoing, for_each_with_label, etc.) use add_method_mut, which holds an exclusive Lua UserData borrow for the entire call. A callback cannot call back into another db: method — it would panic with UserDataBorrowMutError. Fix: switch all bindings to add_method (LuaGraphStore wraps Rc<RefCell<...>> so no functional change needed). Not yet done — requires touching all existing bindings.
+
 ## TODO
 - Implement MmapPageStore using the `mmap2` Rust crate. Pre-allocate a large virtual address space upfront to avoid remapping on every page allocation. Use MAP_SHARED so writes go back to the file. Call msync() on flush/close for crash safety.
 - Optimize `insert_node` page traversal: read only `NexoraPageHeader + GraphNodePageHeader` (80 bytes) first to check free slots via zone map and bitset, then read the full 4KB page only if a free slot exists. Avoids 4KB reads for full pages during chain traversal. Use a new `read_node_page_header` method alongside the existing `read_page_header_unchecked`. Only meaningful when the chain contains many full pages.
