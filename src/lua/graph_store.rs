@@ -19,11 +19,11 @@ impl mlua::UserData for LuaGraphStore {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         // --- Nodes ---
 
-        methods.add_method_mut("insert_node", |_, this, label: String| {
+        methods.add_method("insert_node", |_, this, label: String| {
             this.0.borrow_mut().insert_node(&label).map_err(mlua::Error::external)
         });
 
-        methods.add_method_mut("get_node", |lua, this, id: u64| {
+        methods.add_method("get_node", |lua, this, id: u64| {
             let node = this.0.borrow_mut().get_node(id).map_err(mlua::Error::external)?;
             let t = lua.create_table()?;
             t.set("id", node.id)?;
@@ -31,23 +31,23 @@ impl mlua::UserData for LuaGraphStore {
             Ok(t)
         });
 
-        methods.add_method_mut("update_node", |_, this, (id, label): (u64, String)| {
+        methods.add_method("update_node", |_, this, (id, label): (u64, String)| {
             use crate::graph::models::Node;
             let node = Node { id, label };
             this.0.borrow_mut().update_node(&node).map_err(mlua::Error::external)
         });
 
-        methods.add_method_mut("delete_node", |_, this, id: u64| {
+        methods.add_method("delete_node", |_, this, id: u64| {
             this.0.borrow_mut().delete_node(id).map_err(mlua::Error::external)
         });
 
         // --- Edges ---
 
-        methods.add_method_mut("insert_edge", |_, this, (src, dst, label, weight): (u64, u64, String, f64)| {
+        methods.add_method("insert_edge", |_, this, (src, dst, label, weight): (u64, u64, String, f64)| {
             this.0.borrow_mut().insert_edge(src, dst, &label, weight).map_err(mlua::Error::external)
         });
 
-        methods.add_method_mut("get_edge", |lua, this, id: u64| {
+        methods.add_method("get_edge", |lua, this, id: u64| {
             let edge = this.0.borrow_mut().get_edge(id).map_err(mlua::Error::external)?;
             let t = lua.create_table()?;
             t.set("id", edge.id)?;
@@ -58,36 +58,36 @@ impl mlua::UserData for LuaGraphStore {
             Ok(t)
         });
 
-        methods.add_method_mut("update_edge", |_, this, (id, label, weight): (u64, String, f64)| {
+        methods.add_method("update_edge", |_, this, (id, label, weight): (u64, String, f64)| {
             use crate::graph::models::Edge;
             let existing = this.0.borrow_mut().get_edge(id).map_err(mlua::Error::external)?;
             let edge = Edge { id, src: existing.src, dst: existing.dst, label, weight };
             this.0.borrow_mut().update_edge(&edge).map_err(mlua::Error::external)
         });
 
-        methods.add_method_mut("delete_edge", |_, this, id: u64| {
+        methods.add_method("delete_edge", |_, this, id: u64| {
             this.0.borrow_mut().delete_edge(id).map_err(mlua::Error::external)
         });
 
         // --- Traversal ---
 
-        methods.add_method_mut("outgoing_cursor", |_, this, node_id: u64| {
+        methods.add_method("outgoing_cursor", |_, this, node_id: u64| {
             let cursor = this.0.borrow_mut().outgoing_cursor(node_id).map_err(mlua::Error::external)?;
             Ok(LuaCursor(cursor))
         });
 
-        methods.add_method_mut("incoming_cursor", |_, this, node_id: u64| {
+        methods.add_method("incoming_cursor", |_, this, node_id: u64| {
             let cursor = this.0.borrow_mut().incoming_cursor(node_id).map_err(mlua::Error::external)?;
             Ok(LuaCursor(cursor))
         });
 
-        methods.add_method_mut("next_outgoing", |lua, this, cursor: mlua::AnyUserData| {
+        methods.add_method("next_outgoing", |lua, this, cursor: mlua::AnyUserData| {
             let mut lc = cursor.borrow_mut::<LuaCursor>()?;
             let edge = this.0.borrow_mut().next_outgoing(&mut lc.0).map_err(mlua::Error::external)?;
             edge_to_lua(lua, edge)
         });
 
-        methods.add_method_mut("next_incoming", |lua, this, cursor: mlua::AnyUserData| {
+        methods.add_method("next_incoming", |lua, this, cursor: mlua::AnyUserData| {
             let mut lc = cursor.borrow_mut::<LuaCursor>()?;
             let edge = this.0.borrow_mut().next_incoming(&mut lc.0).map_err(mlua::Error::external)?;
             edge_to_lua(lua, edge)
@@ -95,17 +95,17 @@ impl mlua::UserData for LuaGraphStore {
 
         // --- Scan ---
 
-        methods.add_method_mut("all_nodes_cursor", |_, this, ()| {
+        methods.add_method("all_nodes_cursor", |_, this, ()| {
             let cursor = this.0.borrow_mut().all_nodes_cursor().map_err(mlua::Error::external)?;
             Ok(LuaCursor(cursor))
         });
 
-        methods.add_method_mut("all_edges_cursor", |_, this, ()| {
+        methods.add_method("all_edges_cursor", |_, this, ()| {
             let cursor = this.0.borrow_mut().all_edges_cursor().map_err(mlua::Error::external)?;
             Ok(LuaCursor(cursor))
         });
 
-        methods.add_method_mut("next_node", |lua, this, cursor: mlua::AnyUserData| {
+        methods.add_method("next_node", |lua, this, cursor: mlua::AnyUserData| {
             let mut lc = cursor.borrow_mut::<LuaCursor>()?;
             let node = this.0.borrow_mut().next_node(&mut lc.0).map_err(mlua::Error::external)?;
             match node {
@@ -119,7 +119,7 @@ impl mlua::UserData for LuaGraphStore {
             }
         });
 
-        methods.add_method_mut("next_edge", |lua, this, cursor: mlua::AnyUserData| {
+        methods.add_method("next_edge", |lua, this, cursor: mlua::AnyUserData| {
             let mut lc = cursor.borrow_mut::<LuaCursor>()?;
             let edge = this.0.borrow_mut().next_edge(&mut lc.0).map_err(mlua::Error::external)?;
             edge_to_lua(lua, edge)
@@ -127,33 +127,33 @@ impl mlua::UserData for LuaGraphStore {
 
         // --- Node properties ---
 
-        methods.add_method_mut("set_node_property", |_, this, (node_id, key, value): (u64, String, String)| {
+        methods.add_method("set_node_property", |_, this, (node_id, key, value): (u64, String, String)| {
             this.0.borrow_mut().set_node_property(node_id, &key, &value).map_err(mlua::Error::external)
         });
 
-        methods.add_method_mut("get_node_property", |_, this, (node_id, key): (u64, String)| {
+        methods.add_method("get_node_property", |_, this, (node_id, key): (u64, String)| {
             let mut buf = vec![0u8; crate::graph::string::constants::MAX_STRING_LENGTH];
             let result = this.0.borrow_mut().get_node_property(node_id, &key, &mut buf).map_err(mlua::Error::external)?;
             Ok(result.map(|len| String::from_utf8_lossy(&buf[..len as usize]).into_owned()))
         });
 
-        methods.add_method_mut("delete_node_property", |_, this, (node_id, key): (u64, String)| {
+        methods.add_method("delete_node_property", |_, this, (node_id, key): (u64, String)| {
             this.0.borrow_mut().delete_node_property(node_id, &key).map_err(mlua::Error::external)
         });
 
         // --- Edge properties ---
 
-        methods.add_method_mut("set_edge_property", |_, this, (edge_id, key, value): (u64, String, String)| {
+        methods.add_method("set_edge_property", |_, this, (edge_id, key, value): (u64, String, String)| {
             this.0.borrow_mut().set_edge_property(edge_id, &key, &value).map_err(mlua::Error::external)
         });
 
-        methods.add_method_mut("get_edge_property", |_, this, (edge_id, key): (u64, String)| {
+        methods.add_method("get_edge_property", |_, this, (edge_id, key): (u64, String)| {
             let mut buf = vec![0u8; crate::graph::string::constants::MAX_STRING_LENGTH];
             let result = this.0.borrow_mut().get_edge_property(edge_id, &key, &mut buf).map_err(mlua::Error::external)?;
             Ok(result.map(|len| String::from_utf8_lossy(&buf[..len as usize]).into_owned()))
         });
 
-        methods.add_method_mut("delete_edge_property", |_, this, (edge_id, key): (u64, String)| {
+        methods.add_method("delete_edge_property", |_, this, (edge_id, key): (u64, String)| {
             this.0.borrow_mut().delete_edge_property(edge_id, &key).map_err(mlua::Error::external)
         });
 
@@ -161,7 +161,7 @@ impl mlua::UserData for LuaGraphStore {
 
         // for_each_outgoing(node_id, fn(edge)) — callback receives an edge table.
         // Return false from the callback to stop early.
-        methods.add_method_mut("for_each_outgoing", |lua, this, (node_id, f): (u64, mlua::Function)| {
+        methods.add_method("for_each_outgoing", |lua, this, (node_id, f): (u64, mlua::Function)| {
             let mut cursor = this.0.borrow_mut().outgoing_cursor(node_id).map_err(mlua::Error::external)?;
             loop {
                 let edge = this.0.borrow_mut().next_outgoing(&mut cursor).map_err(mlua::Error::external)?;
@@ -180,7 +180,7 @@ impl mlua::UserData for LuaGraphStore {
         });
 
         // for_each_incoming(node_id, fn(edge))
-        methods.add_method_mut("for_each_incoming", |lua, this, (node_id, f): (u64, mlua::Function)| {
+        methods.add_method("for_each_incoming", |lua, this, (node_id, f): (u64, mlua::Function)| {
             let mut cursor = this.0.borrow_mut().incoming_cursor(node_id).map_err(mlua::Error::external)?;
             loop {
                 let edge = this.0.borrow_mut().next_incoming(&mut cursor).map_err(mlua::Error::external)?;
@@ -200,7 +200,7 @@ impl mlua::UserData for LuaGraphStore {
 
         // bfs(start, max_depth, fn(node, depth)) — callback receives a node table and integer depth.
         // Return false to stop early.
-        methods.add_method_mut("bfs", |lua, this, (start, max_depth, f): (u64, usize, mlua::Function)| {
+        methods.add_method("bfs", |lua, this, (start, max_depth, f): (u64, usize, mlua::Function)| {
             let mut visited: HashSet<u64> = HashSet::new();
             let mut queue: VecDeque<(u64, usize)> = VecDeque::new();
             visited.insert(start);
@@ -232,7 +232,7 @@ impl mlua::UserData for LuaGraphStore {
         });
 
         // dfs(start, max_depth, fn(node, depth))
-        methods.add_method_mut("dfs", |lua, this, (start, max_depth, f): (u64, usize, mlua::Function)| {
+        methods.add_method("dfs", |lua, this, (start, max_depth, f): (u64, usize, mlua::Function)| {
             let mut visited: HashSet<u64> = HashSet::new();
             let mut stack: Vec<(u64, usize)> = vec![(start, 0)];
 
@@ -269,14 +269,14 @@ impl mlua::UserData for LuaGraphStore {
         });
 
         // has_path(src, dst) → boolean
-        methods.add_method_mut("has_path", |_, this, (src, dst): (u64, u64)| {
+        methods.add_method("has_path", |_, this, (src, dst): (u64, u64)| {
             use crate::api::traversal::{Traversal, TraverseApi};
             let mut gs = this.0.borrow_mut();
             Traversal::new(&mut *gs).has_path(src, dst).map_err(mlua::Error::external)
         });
 
         // shortest_path(src, dst) → table (array of node ids) | nil
-        methods.add_method_mut("shortest_path", |lua, this, (src, dst): (u64, u64)| {
+        methods.add_method("shortest_path", |lua, this, (src, dst): (u64, u64)| {
             use crate::api::traversal::{Traversal, TraverseApi};
             let path = {
                 let mut gs = this.0.borrow_mut();
@@ -296,7 +296,7 @@ impl mlua::UserData for LuaGraphStore {
 
         // for_each_with_label(label, fn(node)) — visits every node whose label matches.
         // Return false from the callback to stop early.
-        methods.add_method_mut("for_each_with_label", |lua, this, (label, f): (String, mlua::Function)| {
+        methods.add_method("for_each_with_label", |lua, this, (label, f): (String, mlua::Function)| {
             let mut cursor = this.0.borrow_mut().all_nodes_cursor().map_err(mlua::Error::external)?;
             loop {
                 let node = this.0.borrow_mut().next_node(&mut cursor).map_err(mlua::Error::external)?;
@@ -317,17 +317,17 @@ impl mlua::UserData for LuaGraphStore {
 
         // --- Property iteration ---
 
-        methods.add_method_mut("node_properties_cursor", |_, this, node_id: u64| {
+        methods.add_method("node_properties_cursor", |_, this, node_id: u64| {
             let cursor = this.0.borrow_mut().node_properties_cursor(node_id).map_err(mlua::Error::external)?;
             Ok(LuaCursor(cursor))
         });
 
-        methods.add_method_mut("edge_properties_cursor", |_, this, edge_id: u64| {
+        methods.add_method("edge_properties_cursor", |_, this, edge_id: u64| {
             let cursor = this.0.borrow_mut().edge_properties_cursor(edge_id).map_err(mlua::Error::external)?;
             Ok(LuaCursor(cursor))
         });
 
-        methods.add_method_mut("next_property", |lua, this, cursor: mlua::AnyUserData| {
+        methods.add_method("next_property", |lua, this, cursor: mlua::AnyUserData| {
             let mut lc = cursor.borrow_mut::<LuaCursor>()?;
             let prop = this.0.borrow_mut().next_property(&mut lc.0).map_err(mlua::Error::external)?;
             match prop {

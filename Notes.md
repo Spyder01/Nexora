@@ -105,7 +105,7 @@ _pad:             u8    — 1 byte    (offset 39)
 - `close()` on `PageStore` trait is a design smell — lifecycle is not an I/O primitive concern. Options: (1) second trait bound `S: PageStore + Closeable`; (2) implement `Drop` on `BufferStore` to flush dirty frames — guarantees flush even if caller forgets `close()`, but `Drop` cannot return `Result` so I/O errors are silently swallowed. Refactor when design hardens.
 
 ## Lua Bindings
-- All high-level traversal bindings (bfs, dfs, for_each_outgoing, for_each_with_label, etc.) use add_method_mut, which holds an exclusive Lua UserData borrow for the entire call. A callback cannot call back into another db: method — it would panic with UserDataBorrowMutError. Fix: switch all bindings to add_method (LuaGraphStore wraps Rc<RefCell<...>> so no functional change needed). Not yet done — requires touching all existing bindings.
+- All bindings use add_method (shared UserData borrow). Callbacks can freely call other db: methods — re-entrancy works. LuaGraphStore wraps Rc<RefCell<...>> so all exclusivity is enforced by the inner RefCell, not the UserData borrow.
 
 ## TODO
 - Implement MmapPageStore using the `mmap2` Rust crate. Pre-allocate a large virtual address space upfront to avoid remapping on every page allocation. Use MAP_SHARED so writes go back to the file. Call msync() on flush/close for crash safety.

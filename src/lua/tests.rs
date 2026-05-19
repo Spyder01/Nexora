@@ -668,7 +668,28 @@ mod tests {
         });
     }
 
-    // Test 29 — node ids returned by for_each_with_label match inserted ids
+    // Test 29 — callback can call other db: methods (re-entrancy now works with add_method)
+    #[test]
+    fn test_lua_for_each_with_label_reentrant_callback() {
+        let path = tmp_path("test_lua_label_reentrant.nxr");
+        cleanup(&path);
+        run(move || {
+            let (lua, _shared) = setup_lua(&path);
+            lua.load(r#"
+                local id = db:insert_node("Person")
+                db:set_node_property(id, "name", "Alice")
+
+                local found = nil
+                db:for_each_with_label("Person", function(node)
+                    found = db:get_node_property(node.id, "name")
+                end)
+                assert(found == "Alice", "expected Alice, got " .. tostring(found))
+            "#).exec().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 30 — node ids returned by for_each_with_label match inserted ids
     #[test]
     fn test_lua_for_each_with_label_node_ids() {
         let path = tmp_path("test_lua_label_ids.nxr");

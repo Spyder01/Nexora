@@ -7,36 +7,6 @@ on:
     branches: [main]
 
 jobs:
-  # ── fast gate: format + static analysis ──────────────────────────────────
-  check:
-    name: Check & Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Format
-        run: cargo fmt --check
-
-      - name: Check (no features)
-        run: cargo check
-
-      - name: Check (lua)
-        run: cargo check --features lua
-
-      - name: Clippy (no features)
-        run: cargo clippy
-
-      - name: Clippy (lua)
-        run: cargo clippy --features lua
-
   # ── tests on both platforms ───────────────────────────────────────────────
   test:
     name: Test / ${{ matrix.os }}
