@@ -8,15 +8,16 @@
 
 1. [Getting started](#1-getting-started)
 2. [The REPL](#2-the-repl)
-3. [Nodes](#3-nodes)
-4. [Edges](#4-edges)
-5. [Properties](#5-properties)
-6. [Traversal](#6-traversal)
-7. [Scanning the full graph](#7-scanning-the-full-graph)
-8. [Multi-hop traversal patterns](#8-multi-hop-traversal-patterns)
+3. [Non-interactive mode: exec and eval](#3-non-interactive-mode-exec-and-eval)
+4. [Nodes](#4-nodes)
+5. [Edges](#5-edges)
+6. [Properties](#6-properties)
+7. [Traversal](#7-traversal)
+8. [Scanning the full graph](#8-scanning-the-full-graph)
+9. [Multi-hop traversal patterns](#9-multi-hop-traversal-patterns)
    - [for_each_with_label](#for_each_with_label)
-9. [Persisting data](#9-persisting-data)
-10. [File format](#10-file-format)
+10. [Persisting data](#10-persisting-data)
+11. [File format](#11-file-format)
 
 ---
 
@@ -108,7 +109,45 @@ nexora> for i = 1, 3 do
 
 ---
 
-## 3. Nodes
+## 3. Non-interactive mode: exec and eval
+
+Use `exec` and `eval` to run Lua against a database from the shell — no interactive prompt. Both use the same sandboxed environment as the REPL, and output only comes from explicit `print()` calls.
+
+### exec — run a script file
+
+```bash
+nexora exec mydb.nxr seed.lua
+nexora exec --new mydb.nxr seed.lua   # force-create the database first
+```
+
+`seed.lua`:
+```lua
+for i = 1, 100 do
+    local id = db:insert_node("Person")
+    db:set_node_property(id, "name", "Person_" .. i)
+end
+print("seeded 100 nodes")
+```
+
+### eval — run an inline script
+
+```bash
+nexora eval mydb.nxr "print(db:get_node(0).label)"
+nexora eval mydb.nxr "db:insert_node('City')"
+```
+
+Useful for quick inspection or one-off mutations without opening the REPL.
+
+### Scripting conventions
+
+- Output: use `print()`. There is no auto-printing of expression results.
+- Errors: a Lua error exits with code 1 and prints the message to stderr.
+- The `db` handle is flushed and closed automatically when the script finishes.
+- `os`, `io`, `require`, and `load` are not available (same sandbox as the REPL).
+
+---
+
+## 4. Nodes
 
 A node has an **id** (assigned automatically) and a **label** (a string you choose).
 
@@ -145,7 +184,7 @@ db:get_node(alice)   -- error: node not found
 
 ---
 
-## 4. Edges
+## 5. Edges
 
 An edge is **directed** — it goes from a source node to a destination node. It has an **id**, a **label**, and a floating-point **weight**.
 
@@ -182,7 +221,7 @@ db:delete_edge(e1)
 
 ---
 
-## 5. Properties
+## 6. Properties
 
 Any node or edge can have any number of key-value properties. Both keys and values are strings.
 
@@ -233,7 +272,7 @@ end
 
 ---
 
-## 6. Traversal
+## 7. Traversal
 
 Traversal uses a **cursor** — an opaque handle that steps through a linked list of edges one at a time.
 
@@ -273,7 +312,7 @@ Each edge returned by `next_outgoing` / `next_incoming` has:
 
 ---
 
-## 7. Scanning the full graph
+## 8. Scanning the full graph
 
 ### All nodes
 
@@ -301,7 +340,7 @@ Deleted nodes and edges are skipped automatically.
 
 ---
 
-## 8. Multi-hop traversal patterns
+## 9. Multi-hop traversal patterns
 
 Nexora provides built-in traversal methods on `db` for common graph algorithms. All callback-based methods receive node/edge data as a table; return `false` to stop early, or return nothing to continue.
 
@@ -422,7 +461,7 @@ follow(0, "KNOWS", 2)
 
 ---
 
-## 9. Persisting data
+## 10. Persisting data
 
 Data is flushed to disk when you **quit the REPL** (Ctrl-D) or when your Rust code calls `db.close()`. Opening the same file again restores everything exactly:
 
@@ -439,7 +478,7 @@ nexora> db:get_node(0)
 
 ---
 
-## 10. File format
+## 11. File format
 
 A `.nxr` file is a sequence of fixed-size **4 KB pages**. Each page begins with a header containing the page type, a next-page pointer, and a CRC32 checksum.
 

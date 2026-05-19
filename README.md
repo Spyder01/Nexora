@@ -45,6 +45,26 @@ db.close()?;
 
 ---
 
+## CLI
+
+```bash
+# Interactive REPL
+nexora mydb.nxr
+
+# Run a Lua script file non-interactively
+nexora exec mydb.nxr seed.lua
+
+# Evaluate an inline Lua expression
+nexora eval mydb.nxr "print(db:get_node(0).label)"
+
+# Force-create a new database (fails if file exists)
+nexora exec --new mydb.nxr seed.lua
+```
+
+`exec` and `eval` run inside the same sandbox as the REPL — `os`, `io`, and `require` are not available. Output only comes from explicit `print()` calls.
+
+---
+
 ## Building
 
 ```bash
@@ -54,7 +74,7 @@ cargo build
 # Release build
 cargo build --release
 
-# Build with Lua REPL
+# Build with Lua REPL / CLI
 cargo build --features lua
 
 # Run tests

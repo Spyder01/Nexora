@@ -612,6 +612,62 @@ mod tests {
         });
     }
 
+    // ── Sandbox ───────────────────────────────────────────────────────────────
+
+    fn setup_sandboxed_lua(path: &std::path::Path) -> (Lua, Rc<RefCell<GraphStore<crate::storage::page_store_disk::RegularPageStore>>>) {
+        use crate::lua::repl::make_sandbox;
+        let store = GraphStore::create(path).unwrap();
+        let shared = Rc::new(RefCell::new(store));
+        let lua = Lua::new();
+        let sandbox = make_sandbox(&lua, &shared).unwrap();
+        lua.globals().set("db", LuaGraphStore(Rc::clone(&shared))).unwrap();
+        lua.globals().set("sandbox", sandbox).unwrap();
+        (lua, shared)
+    }
+
+    // Test 30 — sandbox blocks os, io, require, load
+    #[test]
+    fn test_lua_sandbox_blocks_dangerous_globals() {
+        let path = tmp_path("test_lua_sandbox_block.nxr");
+        cleanup(&path);
+        run(move || {
+            let (lua, _shared) = setup_sandboxed_lua(&path);
+            // Each of these must be nil inside the sandbox
+            lua.load(r#"
+                local sb = sandbox
+                assert(sb.os      == nil, "os must be blocked")
+                assert(sb.io      == nil, "io must be blocked")
+                assert(sb.require == nil, "require must be blocked")
+                assert(sb.load    == nil, "load must be blocked")
+                assert(sb.dofile  == nil, "dofile must be blocked")
+                assert(sb.loadfile == nil, "loadfile must be blocked")
+            "#).exec().unwrap();
+            cleanup(&path);
+        });
+    }
+
+    // Test 31 — sandbox exposes safe stdlib and db
+    #[test]
+    fn test_lua_sandbox_allows_safe_globals() {
+        let path = tmp_path("test_lua_sandbox_allow.nxr");
+        cleanup(&path);
+        run(move || {
+            let (lua, _shared) = setup_sandboxed_lua(&path);
+            lua.load(r#"
+                local sb = sandbox
+                assert(type(sb.math)   == "table",    "math missing")
+                assert(type(sb.string) == "table",    "string missing")
+                assert(type(sb.table)  == "table",    "table missing")
+                assert(type(sb.print)  == "function", "print missing")
+                assert(type(sb.pairs)  == "function", "pairs missing")
+                assert(type(sb.ipairs) == "function", "ipairs missing")
+                assert(type(sb.pcall)  == "function", "pcall missing")
+                assert(sb.db          ~= nil,         "db missing")
+            "#).exec().unwrap();
+            cleanup(&path);
+        });
+    }
+
     // Test 29 — node ids returned by for_each_with_label match inserted ids
     #[test]
     fn test_lua_for_each_with_label_node_ids() {
