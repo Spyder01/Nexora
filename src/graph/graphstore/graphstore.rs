@@ -651,3 +651,31 @@ impl GraphStore<crate::storage::page_store_disk::RegularPageStore> {
         Ok(GraphStore::new(storage))
     }
 }
+
+type WalStore = crate::storage::wal::WALPageStore<crate::storage::page_store_disk::RegularPageStore>;
+
+fn wal_path_for(db_path: &std::path::Path) -> std::path::PathBuf {
+    let name = db_path
+        .file_name()
+        .map(|n| format!("{}-wal", n.to_string_lossy()))
+        .unwrap_or_else(|| "nexora.nxr-wal".into());
+    db_path.with_file_name(name)
+}
+
+impl GraphStore<WalStore> {
+    pub fn create_wal(path: &std::path::Path) -> Result<Self, NexoraGraphStoreError> {
+        use crate::storage::page_store_disk::RegularPageStore;
+        let inner = RegularPageStore::create(path)?;
+        let store = crate::storage::wal::WALPageStore::create(inner, &wal_path_for(path))?;
+        let storage = StorageManager::from_page_store(BufferStore::new(store))?;
+        Ok(GraphStore::new(storage))
+    }
+
+    pub fn open_wal(path: &std::path::Path) -> Result<Self, NexoraGraphStoreError> {
+        use crate::storage::page_store_disk::RegularPageStore;
+        let inner = RegularPageStore::open(path)?;
+        let store = crate::storage::wal::WALPageStore::open(inner, &wal_path_for(path))?;
+        let storage = StorageManager::from_page_store(BufferStore::new(store))?;
+        Ok(GraphStore::new(storage))
+    }
+}

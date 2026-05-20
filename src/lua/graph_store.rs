@@ -5,9 +5,12 @@ use std::rc::Rc;
 
 use crate::graph::graphstore::graphstore::GraphStore;
 use crate::graph::record::types::RecordCursor;
+use crate::storage::page_store::PageStore;
 use crate::storage::page_store_disk::RegularPageStore;
+use crate::storage::wal::WALPageStore;
 
-pub struct LuaGraphStore(pub Rc<RefCell<GraphStore<RegularPageStore>>>);
+pub type LuaStore = GraphStore<WALPageStore<RegularPageStore>>;
+pub struct LuaGraphStore<S: PageStore>(pub Rc<RefCell<GraphStore<S>>>);
 
 pub struct LuaCursor(pub RecordCursor);
 
@@ -15,7 +18,7 @@ pub struct LuaCursor(pub RecordCursor);
 impl mlua::UserData for LuaCursor {}
 
 #[cfg(feature = "lua")]
-impl mlua::UserData for LuaGraphStore {
+impl<S: PageStore + 'static> mlua::UserData for LuaGraphStore<S> {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         // --- Nodes ---
 

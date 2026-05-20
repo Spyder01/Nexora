@@ -19,6 +19,12 @@ pub enum NexoraStorageError {
 
   #[error("checksum mismatch on page {0}")]
   ChecksumMismatch(u64),
+
+  #[error("corrupt WAL file")]
+  CorruptWal,
+
+  #[error("WAL index full — too many unique pages written before checkpoint")]
+  WalIndexFull,
 }
 
 

@@ -24,6 +24,10 @@ struct Cli {
     /// Force-create a new database; fails if the file already exists (REPL mode only).
     #[arg(long, help = "Force-create a new database (fails if PATH already exists)")]
     new: bool,
+
+    /// Disable WAL — faster but no crash safety (REPL mode only).
+    #[arg(long, help = "Disable write-ahead log (no crash safety)")]
+    no_wal: bool,
 }
 
 #[derive(Subcommand)]
@@ -41,6 +45,10 @@ enum Command {
         /// Force-create a new database; fails if PATH already exists.
         #[arg(long)]
         new: bool,
+
+        /// Disable WAL — faster but no crash safety.
+        #[arg(long)]
+        no_wal: bool,
     },
 
     /// Evaluate an inline Lua string against a database (non-interactive).
@@ -56,6 +64,10 @@ enum Command {
         /// Force-create a new database; fails if PATH already exists.
         #[arg(long)]
         new: bool,
+
+        /// Disable WAL — faster but no crash safety.
+        #[arg(long)]
+        no_wal: bool,
     },
 }
 
@@ -65,21 +77,21 @@ fn main() {
     let result = match cli.command {
         None => {
             let mode = if cli.new { OpenMode::ForceNew } else { OpenMode::Auto };
-            run(&cli.path, mode)
+            run(&cli.path, mode, !cli.no_wal)
         }
-        Some(Command::Exec { db, script, new }) => {
+        Some(Command::Exec { db, script, new, no_wal }) => {
             let mode = if new { OpenMode::ForceNew } else { OpenMode::Auto };
             match std::fs::read_to_string(&script) {
                 Err(e) => {
                     eprintln!("error: cannot read '{}': {e}", script.display());
                     std::process::exit(1);
                 }
-                Ok(src) => exec_script(&db, &src, mode),
+                Ok(src) => exec_script(&db, &src, mode, !no_wal),
             }
         }
-        Some(Command::Eval { db, script, new }) => {
+        Some(Command::Eval { db, script, new, no_wal }) => {
             let mode = if new { OpenMode::ForceNew } else { OpenMode::Auto };
-            exec_script(&db, &script, mode)
+            exec_script(&db, &script, mode, !no_wal)
         }
     };
 

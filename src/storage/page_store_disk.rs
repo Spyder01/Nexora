@@ -66,6 +66,10 @@ impl PageStore for RegularPageStore {
         Ok(())
     }
 
+    fn sync(&mut self) -> Result<(), NexoraStorageError> {
+        self.file.sync_all().map_err(Into::into)
+    }
+
     fn read_page_header_unchecked(&mut self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError> {
         let mut buf = [0u8; PAGE_HEADER_SIZE];
         self.file.seek(SeekFrom::Start(page_id.byte_offset()))?;

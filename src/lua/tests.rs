@@ -8,7 +8,7 @@ mod tests {
     use mlua::Lua;
 
     use crate::graph::graphstore::graphstore::GraphStore;
-    use crate::lua::graph_store::LuaGraphStore;
+    use crate::lua::graph_store::{LuaGraphStore, LuaStore};
 
     const LARGE_STACK: usize = 16 * 1024 * 1024;
 
@@ -18,6 +18,8 @@ mod tests {
 
     fn cleanup(path: &PathBuf) {
         let _ = std::fs::remove_file(path);
+        let wal = path.with_file_name(format!("{}-wal", path.file_name().unwrap().to_string_lossy()));
+        let _ = std::fs::remove_file(wal);
     }
 
     fn run<F: FnOnce() + Send + 'static>(f: F) {
@@ -29,8 +31,8 @@ mod tests {
             .unwrap();
     }
 
-    fn setup_lua(path: &Path) -> (Lua, Rc<RefCell<GraphStore<crate::storage::page_store_disk::RegularPageStore>>>) {
-        let store = GraphStore::create(path).unwrap();
+    fn setup_lua(path: &Path) -> (Lua, Rc<RefCell<LuaStore>>) {
+        let store = GraphStore::create_wal(path).unwrap();
         let shared = Rc::new(RefCell::new(store));
         let lua = Lua::new();
         lua.globals().set("db", LuaGraphStore(Rc::clone(&shared))).unwrap();
@@ -614,9 +616,9 @@ mod tests {
 
     // ── Sandbox ───────────────────────────────────────────────────────────────
 
-    fn setup_sandboxed_lua(path: &std::path::Path) -> (Lua, Rc<RefCell<GraphStore<crate::storage::page_store_disk::RegularPageStore>>>) {
+    fn setup_sandboxed_lua(path: &std::path::Path) -> (Lua, Rc<RefCell<LuaStore>>) {
         use crate::lua::repl::make_sandbox;
-        let store = GraphStore::create(path).unwrap();
+        let store = GraphStore::create_wal(path).unwrap();
         let shared = Rc::new(RefCell::new(store));
         let lua = Lua::new();
         let sandbox = make_sandbox(&lua, &shared).unwrap();

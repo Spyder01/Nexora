@@ -16,6 +16,8 @@ pub trait PageStore {
     // (e.g. traversing the free list to read next_page_id).
     fn read_page_header_unchecked(&mut self, page_id: PageId) -> Result<NexoraPageHeader, NexoraStorageError>;
 
+    fn sync(&mut self) -> Result<(), NexoraStorageError> { Ok(()) }
+
     fn close(&mut self) -> Result<(), NexoraStorageError> { Ok(()) }
 
     fn get_checksum(buf: &[u8; PAGE_SIZE]) -> u32 {
