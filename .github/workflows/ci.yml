@@ -10,7 +10,6 @@ jobs:
   # ── tests on both platforms ───────────────────────────────────────────────
   test:
     name: Test / ${{ matrix.os }}
-    needs: check
     timeout-minutes: 30
 
     strategy:
