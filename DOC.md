@@ -474,7 +474,7 @@ nexora> db:get_node(0)
 { id: 0, label: "Person" }
 ```
 
-> **Warning:** Killing the process with Ctrl-C or a crash before Ctrl-D may leave the file in a partially written state. A WAL (write-ahead log) is planned for a future release.
+> **Note:** Nexora uses a write-ahead log (WAL) by default. If the process crashes before Ctrl-D, the database recovers to the last clean close on next open — uncommitted changes are discarded. Pass `--no-wal` to disable WAL for faster writes at the cost of crash safety.
 
 ---
 
@@ -494,4 +494,4 @@ Labels are **deduplicated** — inserting `"Person"` ten times stores the string
 
 ---
 
-*More sections will be added as WAL, label indexes, and the query language land.*
+*More sections will be added as label indexes and the query language land.*

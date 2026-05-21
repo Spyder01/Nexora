@@ -25,7 +25,8 @@
       "Bash(NEXORA_BENCH_MAX=10 cargo bench *)",
       "Bash(NEXORA_BENCH_MAX=100 cargo bench *)",
       "Bash(NEXORA_BENCH_MAX=1000 cargo bench *)",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(xargs cat -n)"
     ]
   }
 }
