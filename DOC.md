@@ -45,6 +45,12 @@ nexora mydb.nxr
 # Force-create a new file (fails if it already exists)
 nexora --new mydb.nxr
 
+# Disable WAL — faster writes, no crash safety
+nexora --no-wal mydb.nxr
+
+# Use memory-mapped I/O — faster reads on large graphs, no WAL
+nexora --mmap mydb.nxr
+
 # Help
 nexora --help
 ```
@@ -117,7 +123,9 @@ Use `exec` and `eval` to run Lua against a database from the shell — no intera
 
 ```bash
 nexora exec mydb.nxr seed.lua
-nexora exec --new mydb.nxr seed.lua   # force-create the database first
+nexora exec --new mydb.nxr seed.lua     # force-create the database first
+nexora exec --no-wal mydb.nxr seed.lua  # disable WAL for faster bulk loads
+nexora exec --mmap mydb.nxr seed.lua    # use mmap store
 ```
 
 `seed.lua`:
@@ -134,6 +142,7 @@ print("seeded 100 nodes")
 ```bash
 nexora eval mydb.nxr "print(db:get_node(0).label)"
 nexora eval mydb.nxr "db:insert_node('City')"
+nexora eval --mmap mydb.nxr "print(db:get_node(0).label)"
 ```
 
 Useful for quick inspection or one-off mutations without opening the REPL.
@@ -474,7 +483,7 @@ nexora> db:get_node(0)
 { id: 0, label: "Person" }
 ```
 
-> **Note:** Nexora uses a write-ahead log (WAL) by default. If the process crashes before Ctrl-D, the database recovers to the last clean close on next open — uncommitted changes are discarded. Pass `--no-wal` to disable WAL for faster writes at the cost of crash safety.
+> **Note:** Nexora uses a write-ahead log (WAL) by default. If the process crashes before Ctrl-D, the database recovers to the last clean close on next open — uncommitted changes are discarded. Pass `--no-wal` to disable WAL for faster writes at the cost of crash safety. Pass `--mmap` to use memory-mapped I/O instead of regular file I/O — this gives faster reads on large graphs but also disables WAL.
 
 ---
 
