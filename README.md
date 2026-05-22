@@ -4,7 +4,8 @@ A native graph database engine in a single file — embeddable, zero external de
 
 > **Status:** Early development. Core storage, graph primitives, traversal APIs, and Lua scripting are functional. WAL and a query language are planned.
 
-**[→ Full user documentation](DOC.md)**
+**[→ Full user documentation](DOC.md)**  
+**[→ Blog series: Building Nexora](https://devtales.suhan.art/tags/nexora/)**
 
 ---
 
