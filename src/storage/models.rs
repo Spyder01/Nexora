@@ -117,7 +117,7 @@ pub const INITIAL_HEADER: NexoraHeader = NexoraHeader {
     _pad:           [0u8; PAGE_SIZE - PAGE_HEADER_SIZE - 4 - 4 - 8 - 4],
 };
 
-const NEXORA_FOOTER_PAGE_PADDING: usize = PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8;
+const NEXORA_FOOTER_PAGE_PADDING: usize = PAGE_SIZE - PAGE_HEADER_SIZE - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8 - 8;
 
 
 #[derive(Debug, FromBytes, IntoBytes, Immutable, KnownLayout, Copy, Clone)]
@@ -134,9 +134,6 @@ pub struct NexoraFooter {
     pub first_edge_page:             U64,
     pub last_edge_page:              U64,
     pub next_edge_id:                U64,
-
-    pub overflow_elements_count:     U64,
-    pub first_overflow_element_page: U64,
 
     pub page_indices_count:          U64,
     pub first_page_index_page:       U64,
@@ -180,8 +177,6 @@ pub const INITIAL_FOOTER: NexoraFooter = NexoraFooter {
     first_edge_page:             U64::new(SENTINEL_PAGE_ID),
     last_edge_page:              U64::new(SENTINEL_PAGE_ID),
     next_edge_id:                U64::new(0),
-    overflow_elements_count:     U64::new(0),
-    first_overflow_element_page: U64::new(SENTINEL_PAGE_ID),
     page_indices_count:          U64::new(0),
     first_page_index_page:       U64::new(SENTINEL_PAGE_ID),
     free_pages_count:            U64::new(0),
