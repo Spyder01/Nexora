@@ -662,6 +662,20 @@ fn wal_path_for(db_path: &std::path::Path) -> std::path::PathBuf {
     db_path.with_file_name(name)
 }
 
+impl GraphStore<crate::storage::page_store_mmap::MmapStore> {
+    pub fn create_mmap(path: &std::path::Path) -> Result<Self, NexoraGraphStoreError> {
+        let store = crate::storage::page_store_mmap::MmapStore::create(path)?;
+        let storage = StorageManager::from_page_store(BufferStore::new(store))?;
+        Ok(GraphStore::new(storage))
+    }
+
+    pub fn open_mmap(path: &std::path::Path) -> Result<Self, NexoraGraphStoreError> {
+        let store = crate::storage::page_store_mmap::MmapStore::open(path)?;
+        let storage = StorageManager::from_page_store(BufferStore::new(store))?;
+        Ok(GraphStore::new(storage))
+    }
+}
+
 impl GraphStore<WalStore> {
     pub fn create_wal(path: &std::path::Path) -> Result<Self, NexoraGraphStoreError> {
         use crate::storage::page_store_disk::RegularPageStore;

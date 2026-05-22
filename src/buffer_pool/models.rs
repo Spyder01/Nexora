@@ -90,6 +90,12 @@ impl<S: PageStore> BufferStore<S> {
 
 }
 
+impl<S: PageStore> Drop for BufferStore<S> {
+    fn drop(&mut self) {
+        let _ = self.flush();
+    }
+}
+
 impl<S: PageStore> PageStore for BufferStore<S> {
     fn read_page(&mut self, page_id: PageId, buf: &mut [u8; PAGE_SIZE], _verify_checksum: bool) -> core::result::Result<(), NexoraStorageError> {
         let i = match self.find_frame(page_id) {

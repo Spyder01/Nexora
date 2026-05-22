@@ -25,12 +25,16 @@ pub fn exec_script(
     script: &str,
     mode: OpenMode,
     use_wal: bool,
+    use_mmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let exists = path.exists();
     if matches!(mode, OpenMode::ForceNew) && exists {
         return Err(format!("'{}' already exists (omit --new to open it)", path.display()).into());
     }
-    if use_wal {
+    if use_mmap {
+        let store = if exists { GraphStore::open_mmap(path)? } else { GraphStore::create_mmap(path)? };
+        exec_inner(Rc::new(RefCell::new(store)), script)
+    } else if use_wal {
         let store = if exists { GraphStore::open_wal(path)? } else { GraphStore::create_wal(path)? };
         exec_inner(Rc::new(RefCell::new(store)), script)
     } else {
@@ -51,13 +55,16 @@ fn exec_inner<S: PageStore + 'static>(
     Ok(())
 }
 
-pub fn run(path: &Path, mode: OpenMode, use_wal: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(path: &Path, mode: OpenMode, use_wal: bool, use_mmap: bool) -> Result<(), Box<dyn std::error::Error>> {
     let exists = path.exists();
     let created = matches!(mode, OpenMode::ForceNew) || !exists;
     if matches!(mode, OpenMode::ForceNew) && exists {
         return Err(format!("'{}' already exists (omit --new to open it)", path.display()).into());
     }
-    if use_wal {
+    if use_mmap {
+        let store = if exists { GraphStore::open_mmap(path)? } else { GraphStore::create_mmap(path)? };
+        run_inner(path, created, Rc::new(RefCell::new(store)))
+    } else if use_wal {
         let store = if exists { GraphStore::open_wal(path)? } else { GraphStore::create_wal(path)? };
         run_inner(path, created, Rc::new(RefCell::new(store)))
     } else {
