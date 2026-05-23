@@ -258,3 +258,9 @@ Two workflows run on push/PR to `main`:
 - **No heap allocation in storage/graph layers** — `Vec`, `String`, `Box` etc. require explicit justification and approval before introduction. Known approved exceptions are in `graphstore.rs` (label/string resolution at the public API boundary, marked `TODO(phase3)`).
 - **No external server** — the crate is a library; the only binary is the optional Lua REPL.
 - **Cross-platform** — storage I/O uses `std::io::{Seek, Read, Write}` (no Unix-specific syscalls).
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
